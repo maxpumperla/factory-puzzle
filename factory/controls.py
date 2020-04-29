@@ -1,8 +1,9 @@
+""""Controls specify how objects change state (how)."""
 import enum
 import random
 from abc import ABC, abstractmethod
 
-from .models import Table, Direction, Factory, Node
+from .models import Table, Direction, Factory, Node, Rail
 
 
 class Action(enum.IntEnum):
@@ -31,31 +32,23 @@ class ActionResult(enum.IntEnum):
 
 class Controller(ABC):
 
-    table: Table = None
+    factory: Factory = None
 
     @abstractmethod
     def take_action(self, action: Action) -> ActionResult:
         raise NotImplementedError
 
-    @abstractmethod
     def get_factory(self) -> Factory:
-        raise NotImplementedError
+        return self.factory
 
 
-class TableController(Controller):
-    """TableController controls behaviour of a single Table in a Factory. It can move
-    in four directions along the specified nodes of the factory. If
-    the agent wants to move to an available rail, it can actively order
-    the respective rail shuttle."""
+class BaseTableController(Controller):
 
     def __init__(self, table: Table, factory: Factory):
         self.table = table
         self.factory = factory
 
-    def get_factory(self) -> Factory:
-        return self.factory
-
-    def _move_table(self, to: Node):
+    def _move_table(self, to: Node) -> None:
         """Move table to an adjacent node. Cores are moved automatically.
         If we move on a rail, also move the shuttle. If the destination
         completes a phase, mark it as such.
@@ -67,12 +60,14 @@ class TableController(Controller):
             to.has_shuttle = True
 
         self.table.set_node(to)
-        assert to.has_shuttle
         to.set_table(self.table)
 
         if self.table.get_target() is to:
             self.table.phase_completed()
-    
+
+    def _move_to_rail(self, rail, neighbour) -> ActionResult:
+        raise NotImplementedError
+
     def take_action(self, action: Action) -> ActionResult:
         """Attempt to carry out a specified action.
         """
@@ -91,14 +86,72 @@ class TableController(Controller):
                 # can we hop on the rail?
                 rail = self.factory.get_rail(node=neighbour)
                 if rail.is_free():
-                    # order shuttle and move table to rail shuttle, if free
-                    rail.order_shuttle(neighbour)
-                    self._move_table(neighbour)
-                    return ActionResult.MOVED
+                    return self._move_to_rail(rail, neighbour)
                 else:
-                    # target shuttle is blocked with a table
-                    return ActionResult.INVALID 
+                    # target shuttle is blocked with a table.
+                    return ActionResult.INVALID
             else:
                 # Move table from a) node to node, b) rail to rail or c) rail to node
                 self._move_table(neighbour)
                 return ActionResult.MOVED
+
+
+class TableAndRailController(BaseTableController):
+    """TableAndRailController controls behaviour of a single Table in a Factory.
+    If the agent wants to move to an available rail, it can actively order
+    the respective rail shuttle."""
+
+    def __init__(self, table: Table, factory: Factory):
+        super(TableAndRailController, self).__init__(table, factory)
+
+    def _move_to_rail(self, rail, neighbour):
+        rail.order_shuttle(neighbour)
+        self._move_table(neighbour)
+        return ActionResult.MOVED
+
+
+class TableController(BaseTableController):
+    """TableController controls behaviour of a single Table in a Factory.
+    The agent can only enter a rail, if the shuttle is already right next
+    to it (and empty)."""
+
+    def __init__(self, table: Table, factory: Factory):
+        super(TableController, self).__init__(table, factory)
+
+    def _move_to_rail(self, rail, neighbour):
+        if neighbour.has_shuttle:
+            self._move_table(neighbour)
+            return ActionResult.MOVED
+        # shuttle not in position.
+        return ActionResult.INVALID
+
+
+class RailController(Controller):
+    """RailController only controls the shuttle on its rail.
+    """
+
+    def __init__(self, rail: Rail, factory: Factory):
+        self.rail = rail
+        self.factory = factory
+
+    def take_action(self, action: Action) -> ActionResult:
+        node = self.rail.shuttle_node()
+        if action.name == "none":
+            return ActionResult.NONE
+        direction = Direction(action.value)
+        has_neighbour = node.has_neighbour(direction)
+        if not has_neighbour:
+            return ActionResult.INVALID
+        else:
+            neighbour = node.get_neighbour(direction)
+            if neighbour in self.rail.nodes:
+                node.has_shuttle = False
+                neighbour.has_shuttle = True
+                if node.has_table():
+                    table = node.table
+                    table.set_node(neighbour)
+                    assert not node.has_table()
+                    neighbour.set_table(table)
+                return ActionResult.MOVED
+            else:
+                return ActionResult.INVALID

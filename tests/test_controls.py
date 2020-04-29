@@ -1,5 +1,5 @@
 from factory.models import Factory, Rail, Node, Table, Core, Direction, Phase
-from factory.controls import TableController, Action, ActionResult
+from factory.controls import TableAndRailController, Action, ActionResult
 
 
 def test_table_controller():
@@ -27,7 +27,7 @@ def test_table_controller():
     assert table.get_target() == target
 
     factory = Factory(nodes, rails, tables)
-    controller = TableController(table, factory)
+    controller = TableAndRailController(table, factory)
 
     # if we don't move, table is still at start
     res = controller.take_action(Action.none)

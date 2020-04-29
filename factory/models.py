@@ -1,3 +1,5 @@
+"""Models specify the basic building blocks for this project (what).
+They model what objects are and how to interact with them."""
 import enum
 from typing import Optional, Tuple, TypeVar, List, Dict
 
@@ -108,6 +110,9 @@ class Rail:
 
         self.nodes = nodes
         self.shuttle = shuttle
+
+    def shuttle_node(self) -> Node:
+        return self.shuttle
     
     def is_free(self) -> bool:
         return not self.shuttle.has_table()

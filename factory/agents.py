@@ -1,6 +1,7 @@
+"""Agents use the controls of models to find smart ways to act (why)."""
 from abc import ABC, abstractmethod
 from factory.models import Factory, Table, Node
-from factory.controls import Action, ActionResult, Controller, TableController
+from factory.controls import Action, ActionResult, Controller, TableAndRailController
 
 
 class Agent(ABC):
@@ -9,6 +10,9 @@ class Agent(ABC):
     on their behalf"""
 
     controller: Controller = None
+
+    def take_action(self, action: Action) -> ActionResult:
+        return self.controller.take_action(action)
 
     @abstractmethod
     def compute_action(self) -> Action:
@@ -19,15 +23,12 @@ class Agent(ABC):
     def get_location(self) -> Node:
         raise NotImplementedError
 
-    def take_action(self, action: Action) -> ActionResult:
-        return self.controller.take_action(action)
 
-
-class RandomTableAgent(Agent):
+class RandomAgent(Agent):
     """Move this table randomly"""
 
     def __init__(self, table: Table, factory: Factory):
-        self.controller = TableController(table, factory)
+        self.controller = TableAndRailController(table, factory)
 
     def compute_action(self) -> Action:
         return Action.random_action()

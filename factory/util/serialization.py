@@ -1,6 +1,6 @@
 """To track movement and visualize a simulation we only need names,
 positional information and so on."""
-from .models import *
+from factory.models import *
 import json
 
 

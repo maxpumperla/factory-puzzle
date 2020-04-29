@@ -1,7 +1,7 @@
 import json
 
 from factory.models import Node, Table, Core, Phase, Direction
-from factory.serialization import node_to_dict, table_to_dict, core_to_dict
+from factory.util.serialization import node_to_dict, table_to_dict, core_to_dict
 
 
 def test_serde():
