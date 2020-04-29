@@ -1,0 +1,176 @@
+import enum
+from typing import Optional, Tuple, TypeVar, List, Dict
+
+
+__all__ = ["Direction", "Node", "Rail", "Table", "Phase", "Core", "Factory"]
+N = TypeVar('N', bound='Node')
+
+
+class Direction(enum.IntEnum):
+    """Four basic directions on a 2D plane."""
+    up = 0
+    right = 1
+    down = 2
+    left = 3
+
+    @staticmethod
+    def get_all():
+        return [d.name for d in Direction]
+
+    def opposite(self):
+        return Direction((self.value + 2) % 4)
+
+
+class Table:
+    """Tables sit on nodes and potentially carry cores. Tables will
+    act as our main agents in simulations.
+    """
+    def __init__(self, node, core=None, name: str = None):
+        node.set_table(self)
+        self.node = node
+        self.core = core
+        self.name = name
+    
+    def has_core(self) -> bool:
+        return self.core is not None
+
+    def set_core(self, core) -> None:
+        self.core = core
+    
+    def set_node(self, node) -> None:
+        self.node = node
+    
+    def get_target(self):
+        return self.core.current_target if self.has_core() else None
+    
+    def phase_completed(self):
+        """Complete a phase on behalf of your core. If all phases are complete,
+        remove the core from this table."""
+        if self.has_core():
+            self.core.phase_completed()
+            if self.core.done():
+                self.core = None
+
+
+class Node:
+    """Basic building block for this problem. Nodes can be connected
+    to each other. A node can either belong to a Rail, or exist as
+    a standalone, static node. Nodes can host a single Table.
+    """
+    def __init__(self, name: Optional[str] = None, is_rail: bool = False,
+                 has_shuttle: bool = True,
+                 coordinates: Optional[Tuple[int, int]] = None):
+        self.is_rail = is_rail
+        self.name = name
+        self.coordinates = coordinates
+        self.neighbours = {d: None for d in Direction.get_all()}
+        self.table: Optional[Table] = None
+        self.has_shuttle: bool = has_shuttle
+
+    def has_table(self) -> bool:
+        return self.table is not None
+
+    def set_table(self, table: Table) -> None:
+        assert self.has_shuttle, "Can't put a table on a rail without shuttle"
+        assert not self.has_table(), "Can't set another Table, remove the existing first."
+        self.table = table
+
+    def remove_table(self) -> None:
+        self.table = None
+    
+    def connected_to(self, node: N) -> bool:
+        return node in [n for n in self.neighbours.values()]
+
+    def get_neighbour(self, where: Direction) -> N:
+        return self.neighbours[where.name]
+
+    def has_neighbour(self, where: Direction) -> bool:
+        return self.get_neighbour(where) is not None
+    
+    def add_neighbour(self, neighbour: N, where: Direction) -> None:
+        assert neighbour is not self, "Can't connect node to itself"
+        opposite = where.opposite()
+        assert not self.has_neighbour(where) and not neighbour.has_neighbour(opposite)
+        self.neighbours[where.name] = neighbour
+        neighbour.neighbours[opposite.name] = self
+
+
+class Rail:
+    """Rails consist of sequentially connected Nodes,
+    exactly one of which carries a shuttle."""
+    def __init__(self, nodes: List[Node], shuttle: Node):
+        assert shuttle in nodes, "Shuttle must be on this rail"
+        for i in range(len(nodes)-1):
+            assert nodes[i].connected_to(nodes[i+1])
+        for node in nodes:
+            node.has_shuttle = False
+        shuttle.has_shuttle = True
+
+        self.nodes = nodes
+        self.shuttle = shuttle
+    
+    def is_free(self) -> bool:
+        return not self.shuttle.has_table()
+
+    def order_shuttle(self, to: Node) -> None:
+        """Move the rail shuttle to a target node on this rail."""
+        assert self.is_free(), "Can't order shuttle with a table on top"
+        assert to in self.nodes, "Destination must be on this rail"
+        
+        self.shuttle.has_shuttle = False
+        to.has_shuttle = True
+        self.shuttle = to
+
+
+class Phase(enum.IntEnum):
+    """Cores go through one or several production phases.
+    Each phase is mapped to a Node"""
+    A = 0
+    B = 1
+    C = 2
+    D = 3
+    E = 4
+
+
+class Core:
+    """Cores reside on tables and know which phase corresponds to which
+    target node. Cores have to be delivered to targets according to the
+    specified phases."""
+    def __init__(self, table: Table, cycle: Dict[Phase, Node], name: str = None):
+        self.table = table
+        table.set_core(self)
+        self.cycle = cycle
+        self.current_phase: Phase = list(cycle)[0]
+        self.current_target: Node = cycle[self.current_phase]
+        self.name = name
+    
+    def done(self):
+        return not bool(self.cycle)
+    
+    def phase_completed(self):
+        """Remove the completed target from the phases and set next target."""
+        del self.cycle[self.current_phase]
+        self.current_phase = list(self.cycle)[0] if not self.done() else None
+        self.current_target = self.cycle[self.current_phase] if not self.done() else None
+
+
+class Factory:
+    """A Factory sets up all components (nodes, rails, tables) needed to
+    solve the problem of delivering cores to their destinations. Note that
+    this is just a "model", the application logic and agent interaction is
+    separated  """
+    def __init__(self, nodes: List[Node], rails: List[Rail], 
+                 tables: List[Table], name: str = None):
+        self.nodes = nodes
+        self.rails = rails
+        self.tables = tables
+        self.name = name
+
+    def set_tables(self, tables: List[Table]):
+        self.tables = tables
+
+    def get_rail(self, node: Node) -> Optional[Rail]:
+        for rail in self.rails:
+            if node in rail.nodes:
+                return rail
+        return None

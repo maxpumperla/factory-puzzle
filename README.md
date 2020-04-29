@@ -1,0 +1,1 @@
+# Factory puzzle environment
