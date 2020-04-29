@@ -1,20 +1,22 @@
-from factory.util import get_default_factory, print_factory
+from factory.util import get_default_factory, get_small_default_factory, print_factory
 from factory.agents import RandomAgent
 from factory.environments import FactoryEnv
 import time
 
+
 if __name__ == "__main__":
-    factory = get_default_factory(123)
+    factory = get_small_default_factory(1337)
     agent = RandomAgent(factory.tables[0], factory)
     env = FactoryEnv(factory, 5)
     for i in range(100):
-        time.sleep(0.2)
+        time.sleep(0.12)
         print_factory(factory)
         action = agent.compute_action()
         print(">>> Agent location: ", agent.get_location().coordinates)
         print(">>> Intended action: ", action)
         print(">>> Result: ", agent.take_action(action))
 
+    factory = get_small_default_factory(123)
     time.sleep(2)
     multi_agent = [RandomAgent(t, factory) for t in factory.tables]
     num_agents = len(multi_agent)

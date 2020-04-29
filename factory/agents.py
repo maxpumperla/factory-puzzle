@@ -1,4 +1,5 @@
-"""Agents use the controls of models to find smart ways to act (why)."""
+"""Agents use the controls of models to find smart ways to act (why).
+We'll use this abstraction for testing heuristics and loading RLlib agents."""
 from abc import ABC, abstractmethod
 from factory.models import Factory, Table, Node
 from factory.controls import Action, ActionResult, Controller, TableAndRailController
@@ -7,7 +8,7 @@ from factory.controls import Action, ActionResult, Controller, TableAndRailContr
 class Agent(ABC):
     """Agents are the smart parts in the equation. Given a factory
     state, an Agent selects an action, which a Controller can execute
-    on their behalf"""
+    on their behalf."""
 
     controller: Controller = None
 
@@ -28,7 +29,7 @@ class RandomAgent(Agent):
     """Move this table randomly"""
 
     def __init__(self, table: Table, factory: Factory):
-        self.controller = TableAndRailController(table, factory)
+        self.controller: TableAndRailController = TableAndRailController(table, factory)
 
     def compute_action(self) -> Action:
         return Action.random_action()

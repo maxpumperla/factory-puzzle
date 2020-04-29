@@ -106,7 +106,67 @@ def get_default_factory(random_seed, num_tables=8, num_cores=3, num_phases=1) ->
 
     rails = [rail_01, rail_03, rail_04, rail_07, rail_14, rail_15, rail_16, rail_17]
 
-    # TODO: make this a Factory utility?
+    tables = create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases)
+
+    return Factory(nodes, rails, tables, "DefaultFactory")
+
+
+def get_small_default_factory(random_seed, num_tables=4, num_cores=2, num_phases=1) -> Factory:
+    """
+    1--2-----2--3
+    |           |
+    1--6--5     |
+    |     |     |
+    |     5--4--3
+    |     |
+    1--7--5
+    """
+    random.seed(random_seed)
+
+    node_1_c = Node("pt1_c", coordinates=(0, 0), is_rail=True)
+    node_1_b = Node("pt1_b", coordinates=(0, 1), is_rail=True)
+    node_1_a = Node("pt1_a", coordinates=(0, 3), is_rail=True)
+    node_2_a = Node("pt2_a", coordinates=(1, 0), is_rail=True)
+    node_2_b = Node("pt2_b", coordinates=(3, 0), is_rail=True)
+    node_3_b = Node("pt3_c", coordinates=(4, 0), is_rail=True)
+    node_3_a = Node("pt3_a", coordinates=(4, 2), is_rail=True)
+    node_4   = Node("pt4",   coordinates=(3, 2))
+    node_5_c = Node("pt5_c", coordinates=(2, 1), is_rail=True)
+    node_5_b = Node("pt5_b", coordinates=(2, 2), is_rail=True)
+    node_5_a = Node("pt5_a", coordinates=(2, 3), is_rail=True)
+    node_6   = Node("pt6",   coordinates=(1, 1))
+    node_7   = Node("pt7",   coordinates=(1, 3))
+
+    node_1_c.add_neighbour(node_1_b, Direction.down)
+    node_1_b.add_neighbour(node_1_a, Direction.down)
+    node_1_c.add_neighbour(node_2_a, Direction.right)
+    node_2_a.add_neighbour(node_2_b, Direction.right)
+    node_2_b.add_neighbour(node_3_b, Direction.right)
+    node_3_b.add_neighbour(node_3_a, Direction.down)
+    node_3_a.add_neighbour(node_4, Direction.left)
+    node_4.add_neighbour(node_5_b, Direction.left)
+    node_5_c.add_neighbour(node_5_b, Direction.down)
+    node_5_b.add_neighbour(node_5_a, Direction.down)
+    node_5_c.add_neighbour(node_6, Direction.left)
+    node_5_a.add_neighbour(node_7, Direction.left)
+    node_6.add_neighbour(node_1_b, Direction.left)
+    node_7.add_neighbour(node_1_a, Direction.left)
+
+    nodes = [node_3_a, node_3_b, node_4, node_5_a, node_5_b, node_5_c, node_6,
+             node_7, node_1_a, node_1_b, node_1_c, node_2_a, node_2_b]
+
+    rail_1 = Rail(nodes=[node_1_a, node_1_b, node_1_c], shuttle=node_1_a)
+    rail_2 = Rail(nodes=[node_2_a, node_2_b], shuttle=node_2_a)
+    rail_3 = Rail(nodes=[node_3_a, node_3_b], shuttle=node_3_a)
+    rail_4 = Rail(nodes=[node_5_a, node_5_b, node_5_c], shuttle=node_5_a)
+    rails = [rail_1, rail_2, rail_3, rail_4]
+
+    tables = create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases)
+
+    return Factory(nodes, rails, tables, "SmallDefaultFactory")
+
+
+def create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases):
     # tables go on nodes with shuttles
     shuttle_nodes = [n for n in nodes if n.has_shuttle]
     random.shuffle(shuttle_nodes)
@@ -123,5 +183,4 @@ def get_default_factory(random_seed, num_tables=8, num_cores=3, num_phases=1) ->
         for p in range(num_phases):
             cycle[Phase(p)] = fixed_nodes[p]
         Core(tables[idx], cycle, f"core_{idx}")
-
-    return Factory(nodes, rails, tables, "DefaultFactory")
+    return tables
