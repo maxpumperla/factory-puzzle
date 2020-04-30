@@ -1,11 +1,10 @@
 from factory.util import get_default_factory, get_small_default_factory, factory_string
 from factory.agents import RandomAgent
-from factory.environments import FactoryEnv
+# from factory.environments import FactoryEnv
+
 import time
-
-
-import streamlit as st
 import os
+import streamlit as st
 
 
 def main():
@@ -85,7 +84,8 @@ def run_the_app():
         "FactoryMultiAgentEnv (RLlib)"
     ])
     if env_type == "FactoryEnv (gym)":
-        env = FactoryEnv(factory, 5)
+        pass
+        # env = FactoryEnv(factory, 5)
     else:
         raise NotImplementedError
 
