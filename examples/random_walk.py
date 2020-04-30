@@ -16,7 +16,7 @@ if __name__ == "__main__":
         print(">>> Intended action: ", action)
         print(">>> Result: ", agent.take_action(action))
 
-    factory = get_small_default_factory(123)
+    factory = get_default_factory(123)
     time.sleep(2)
     multi_agent = [RandomAgent(t, factory) for t in factory.tables]
     num_agents = len(multi_agent)

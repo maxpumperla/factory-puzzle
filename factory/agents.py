@@ -1,5 +1,5 @@
 """Agents use the controls of models to find smart ways to act (why).
-We'll use this abstraction for testing heuristics and loading RLlib agents."""
+We'll mainly use this abstraction for testing heuristics and loading RLlib agents."""
 from abc import ABC, abstractmethod
 from factory.models import Factory, Table, Node
 from factory.controls import Action, ActionResult, Controller, TableAndRailController
@@ -10,7 +10,8 @@ class Agent(ABC):
     state, an Agent selects an action, which a Controller can execute
     on their behalf."""
 
-    controller: Controller = None
+    controller: Controller
+    name: str
 
     def take_action(self, action: Action) -> ActionResult:
         return self.controller.take_action(action)
@@ -24,15 +25,42 @@ class Agent(ABC):
     def get_location(self) -> Node:
         raise NotImplementedError
 
+    def train(self):
+        pass
+
+    def save(self):
+        pass
+
+    @staticmethod
+    def restore():
+        pass
+
 
 class RandomAgent(Agent):
-    """Move this table randomly"""
+    """Move this table and adjacent shuttles randomly"""
 
-    def __init__(self, table: Table, factory: Factory):
-        self.controller: TableAndRailController = TableAndRailController(table, factory)
+    def __init__(self, table: Table, factory: Factory, name=None):
+        controller_name = name + "_controller" if name else None
+        self.controller: TableAndRailController = TableAndRailController(table, factory, controller_name)
+        self.name = name
 
     def compute_action(self) -> Action:
         return Action.random_action()
+
+    def get_location(self) -> Node:
+        return self.controller.table.node
+
+
+class Heuristic(Agent):
+    """Apply a simple heuristic to get cores to targets."""
+
+    def __init__(self, table: Table, factory: Factory, name=None):
+        controller_name = name + "_controller" if name else None
+        self.controller: TableAndRailController = TableAndRailController(table, factory, controller_name)
+        self.name = name
+
+    def compute_action(self) -> Action:
+        return Action.none  # TODO
 
     def get_location(self) -> Node:
         return self.controller.table.node

@@ -1,8 +1,3 @@
-(- Flask + RayServe API)
-(- Add Angular GUI)
-
-- Logging
-- Simulation? (MCTS etc. for comparisons)
+- Better logging
 - Properly define RL Agents
 - define observations and rewards
-- choose the right environment for the task

@@ -2,12 +2,12 @@ from ..models import Factory, Node, Direction
 SCALE_X, SCALE_Y = 4, 2
 
 
-def factory_string(factory: Factory) -> str:
+def factory_string(factory: Factory, fill_char="·", line_break="\n") -> str:
     nodes = factory.nodes
     max_x = max([n.coordinates[0] for n in nodes]) + 1
     max_y = max([n.coordinates[1] for n in nodes]) + 1
 
-    grid = [[" "] * max_x * SCALE_X for _ in range(max_y * SCALE_Y)]
+    grid = [[fill_char] * max_x * SCALE_X for _ in range(max_y * SCALE_Y)]
 
     for node in nodes:
         x, y = node.coordinates
@@ -16,15 +16,15 @@ def factory_string(factory: Factory) -> str:
         for direction, nb in node.neighbours.items():
             if nb:
                 if direction == "left":
-                    grid[y * SCALE_Y][x * SCALE_X - SCALE_X + 1: x * SCALE_X] = ["-"] * (SCALE_X - 1)
+                    grid[y * SCALE_Y][x * SCALE_X - SCALE_X + 1: x * SCALE_X] = ["="] * (SCALE_X - 1)
                 elif direction == "right":
-                    grid[y * SCALE_Y][x * SCALE_X + 1: x * SCALE_X + SCALE_X] = ["-"] * (SCALE_X - 1)
+                    grid[y * SCALE_Y][x * SCALE_X + 1: x * SCALE_X + SCALE_X] = ["="] * (SCALE_X - 1)
                 elif direction == "up":
-                    grid[y * SCALE_Y - 1][x * SCALE_X] = "|"
+                    grid[y * SCALE_Y - 1][x * SCALE_X] = "║"
                 elif direction == "down":
-                    grid[y * SCALE_Y + 1][x * SCALE_X] = "|"
+                    grid[y * SCALE_Y + 1][x * SCALE_X] = "║"
     grid = ["".join(line) for line in grid]
-    return "\n".join(grid)
+    return line_break.join(grid)
 
 
 def print_factory(factory: Factory):

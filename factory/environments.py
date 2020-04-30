@@ -1,23 +1,39 @@
+"""In which environment are things happening? (where)
+The environment specifies what agents can observe and how
+they are rewarded for actions."""
 from factory.models import Factory
+from factory.agents import Agent
 from factory.util import print_factory, factory_string
 
 from abc import ABC, abstractmethod
+from copy import deepcopy
+
 import gym
 from gym import spaces
-from copy import deepcopy
+from ray import rllib
+import numpy as np
 
 
 class Observation(ABC):
+    """Get all relevant observations for a specified agent,
+    given a factory state."""
+
+    factory: Factory
+
     @abstractmethod
-    def get_reward(self):
+    def get_reward(self, agent: Agent) -> float:
         raise NotImplementedError
 
     @abstractmethod
-    def get_observations(self):
+    def get_observations(self, agent) -> np.array:
         raise NotImplementedError
 
     @abstractmethod
     def done(self) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def info(self) -> str:
         raise NotImplementedError
 
 
@@ -46,8 +62,7 @@ class FactoryEnv(gym.Env):
             done (bool): whether the episode has ended, in which case further step() calls will return undefined results
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        # TODO: implement
-        pass
+        raise NotImplementedError
 
     def render(self, mode='human'):
         if mode == 'ansi':
@@ -59,3 +74,11 @@ class FactoryEnv(gym.Env):
 
     def reset(self):
         self.factory = deepcopy(self.initial_factory)
+
+
+class FactoryVectorEnv(rllib.env.VectorEnv, ABC):
+    pass
+
+
+class FactoryMultiAgentEnv(rllib.env.MultiAgentEnv, ABC):
+    pass

@@ -32,7 +32,8 @@ class ActionResult(enum.IntEnum):
 
 class Controller(ABC):
 
-    factory: Factory = None
+    name: str
+    factory: Factory
 
     @abstractmethod
     def take_action(self, action: Action) -> ActionResult:
@@ -44,9 +45,10 @@ class Controller(ABC):
 
 class BaseTableController(Controller):
 
-    def __init__(self, table: Table, factory: Factory):
+    def __init__(self, table: Table, factory: Factory, name=None):
         self.table = table
         self.factory = factory
+        self.name = name
 
     def _move_table(self, to: Node) -> None:
         """Move table to an adjacent node. Cores are moved automatically.
@@ -97,12 +99,12 @@ class BaseTableController(Controller):
 
 
 class TableAndRailController(BaseTableController):
-    """TableAndRailController controls behaviour of a single Table in a Factory.
-    If the agent wants to move to an available rail, it can actively order
-    the respective rail shuttle."""
+    """TableAndRailController controls behaviour of a single `Table` in a `Factory`
+    and its adjacent `Rail`s. If the agent wants to move to an available rail, it can
+    actively order the respective rail shuttle."""
 
-    def __init__(self, table: Table, factory: Factory):
-        super(TableAndRailController, self).__init__(table, factory)
+    def __init__(self, table: Table, factory: Factory, name: str = None):
+        super(TableAndRailController, self).__init__(table, factory, name)
 
     def _move_to_rail(self, rail, neighbour):
         rail.order_shuttle(neighbour)
@@ -111,12 +113,12 @@ class TableAndRailController(BaseTableController):
 
 
 class TableController(BaseTableController):
-    """TableController controls behaviour of a single Table in a Factory.
-    The agent can only enter a rail, if the shuttle is already right next
+    """TableController controls behaviour of a single `Table` in a `Factory`.
+    The table can only enter a rail, if the shuttle is already right next
     to it (and empty)."""
 
-    def __init__(self, table: Table, factory: Factory):
-        super(TableController, self).__init__(table, factory)
+    def __init__(self, table: Table, factory: Factory, name: str = None):
+        super(TableController, self).__init__(table, factory, name)
 
     def _move_to_rail(self, rail, neighbour):
         if neighbour.has_shuttle:
@@ -127,12 +129,13 @@ class TableController(BaseTableController):
 
 
 class RailController(Controller):
-    """RailController only controls the shuttle on its rail.
+    """RailController only controls the shuttle on its `Rail`, no tables.
     """
 
-    def __init__(self, rail: Rail, factory: Factory):
+    def __init__(self, rail: Rail, factory: Factory, name: str = None):
         self.rail = rail
         self.factory = factory
+        self.name = name
 
     def take_action(self, action: Action) -> ActionResult:
         node = self.rail.shuttle_node()

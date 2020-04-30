@@ -28,11 +28,10 @@ setuptools.setup(
     platforms=["Linux", "OS-X", "Windows"],
     include_package_data=True,
     install_requires=[
-        "gym", "rllib", "graphviz", "streamlit"
+        "gym", "ray[rllib]", "streamlit"
     ],
     extras_require={
-        "dev": ["black", "pre-commit", "nose", "pytest"],
+        "dev": ["black", "pre-commit", "pytest"],
     },
-    tests_require=["nose", "pytest"],
     zip_safe=False,
 )
