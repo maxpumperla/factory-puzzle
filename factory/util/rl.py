@@ -1,9 +1,82 @@
 import ray
+import gym
+from ray import tune
+import os
 import random
 import numpy as np
-from ray.rllib.env import MultiAgentEnv
-from ray.tune import run, sample_from
-from ray.tune.schedulers import PopulationBasedTraining
+from typing import Union
+
+# we initialize ray, once this module gets imported for the first time.
+ray.init(
+    log_to_driver=True,
+    memory=12000 * 1024 * 1024,
+    object_store_memory=10000 * 1024 * 1024,
+    driver_object_store_memory=2000 * 1024 * 1024
+)
+
+
+HYPER_PARAM_MUTATIONS = {
+    'lambda': np.linspace(0.9, 1.0, 5).tolist(),
+    'clip_param': np.linspace(0.01, 0.5, 5).tolist(),
+    'entropy_coeff': np.linspace(0, 0.03, 5).tolist(),
+    'lr': [1e-3, 5e-4, 1e-4, 5e-5, 1e-5],
+    'num_sgd_iter': [5, 10, 15, 20, 30],
+    'sgd_minibatch_size': [128, 256, 512, 1024, 2048],
+    'train_batch_size': [4000, 6000, 8000, 10000, 12000]
+}
+
+
+def default_scheduler():
+    return tune.schedulers.PopulationBasedTraining(
+        time_attr='training_iteration',
+        metric='episode_reward_mean',
+        mode='max',
+        perturbation_interval=10,
+        quantile_fraction=0.25,
+        resample_probability=0.25,
+        log_config=True,
+        hyperparam_mutations=HYPER_PARAM_MUTATIONS
+    )
+
+
+def default_model():
+    model = ray.rllib.models.MODEL_DEFAULTS.copy()
+    model['fcnet_hiddens'] = [256, 256]
+    return model
+
+
+def run_config(env: Union[ray.rllib.BaseEnv, gym.Env], algo='PPO',
+               local_dir=os.path.expanduser("."), scheduler=default_scheduler(),
+               model=default_model()):
+    return {
+        'run_or_experiment': algo,
+        'scheduler': scheduler,
+        'num_samples': 4,
+        'stop': Stopper().stop,
+        'config': {
+            'env': env,
+            'num_gpus': 0,
+            'num_workers': 1,
+            'model': model,
+            'use_gae': True,
+            'vf_loss_coeff': 1.0,
+            'vf_clip_param': np.inf,
+            'lambda': 0.95,
+            'clip_param': 0.2,
+            'lr': 1e-4,
+            'entropy_coeff': 0.0,
+            'num_sgd_iter': tune.sample_from(lambda spec: random.choice([10, 20, 30])),
+            'sgd_minibatch_size': tune.sample_from(lambda spec: random.choice([128, 512, 2048])),
+            'train_batch_size': tune.sample_from(lambda spec: random.choice([4000, 8000, 12000])),
+            'batch_mode': 'complete_episodes',
+        },
+        'local_dir': local_dir,
+        'resume': False,
+        'checkpoint_freq': 50,
+        'checkpoint_at_end': True,
+        'max_failures': 1,
+        'export_formats': ['model']
+    }
 
 
 class Stopper:
@@ -112,73 +185,3 @@ class Stopper:
 
         # Returns False by default until stopping decision made
         return self.should_stop
-
-
-stopper = Stopper()
-
-pbt_scheduler = PopulationBasedTraining(
-    time_attr='training_iteration',
-    metric='episode_reward_mean',
-    mode='max',
-    perturbation_interval=10,
-    quantile_fraction=0.25,
-    resample_probability=0.25,
-    log_config=True,
-    hyperparam_mutations={
-        'lambda': np.linspace(0.9, 1.0, 5).tolist(),
-        'clip_param': np.linspace(0.01, 0.5, 5).tolist(),
-        'entropy_coeff': np.linspace(0, 0.03, 5).tolist(),
-        'lr': [1e-3, 5e-4, 1e-4, 5e-5, 1e-5],
-        'num_sgd_iter': [5, 10, 15, 20, 30],
-        'sgd_minibatch_size': [128, 256, 512, 1024, 2048],
-        'train_batch_size': [4000, 6000, 8000, 10000, 12000]
-    }
-)
-
-
-ray.init(
-    log_to_driver=True,
-    memory=12000 * 1024 * 1024,
-    object_store_memory=10000 * 1024 * 1024,
-    driver_object_store_memory=2000 * 1024 * 1024
-)
-model = ray.rllib.models.MODEL_DEFAULTS.copy()
-model['fcnet_hiddens'] = [256, 256]
-
-trials = run(
-    'PPO',
-    scheduler=pbt_scheduler,
-    num_samples=3,
-    stop=stopper.stop,
-    config={
-        'env': "TODO",
-        'num_gpus': 0,
-        'num_workers': 1,
-        'model': model,
-        'use_gae': True,
-        'vf_loss_coeff': 1.0,
-        'vf_clip_param': np.inf,
-        # These params are tuned from a fixed starting value.
-        'lambda': 0.95,
-        'clip_param': 0.2,
-        'lr': 1e-4,
-        'entropy_coeff': 0.0,
-        # These params start off randomly drawn from a set.
-        'num_sgd_iter': sample_from(
-            lambda spec: random.choice([10, 20, 30])),
-        'sgd_minibatch_size': sample_from(
-            lambda spec: random.choice([128, 512, 2048])),
-        'train_batch_size': sample_from(
-            lambda spec: random.choice([4000, 8000, 12000])),
-        # Set rollout samples to episode length
-        'batch_mode': 'complete_episodes',
-        # Auto-normalize observations
-        # 'observation_filter': 'MeanStdFilter'
-    },
-    local_dir='../TODO',
-    resume=False,
-    checkpoint_freq=50,
-    checkpoint_at_end=True,
-    max_failures=1,
-    export_formats=['model']
-)

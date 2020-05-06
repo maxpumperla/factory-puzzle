@@ -25,9 +25,6 @@ class Agent(ABC):
     def get_location(self) -> Node:
         raise NotImplementedError
 
-    def train(self):
-        pass
-
     def save(self):
         pass
 
