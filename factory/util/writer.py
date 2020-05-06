@@ -29,7 +29,7 @@ def draw_box(img: np.array, pos=(0, 0), text: str = "C"):
 
     img = cv2.rectangle(img, top_left, bottom_right, color, thickness)
 
-    position = (pos[0] + 45, pos[1] + 45)
+    position = (pos[0] + 45, pos[1] + 50)
     if text in ["C", "T"]:
         img = cv2.putText(img, text, position, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 4, cv2.LINE_AA)
     return img

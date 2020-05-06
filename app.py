@@ -1,6 +1,5 @@
-from factory.util import get_default_factory, get_small_default_factory, factory_string, draw_box, draw_boxes
+from factory.util import get_default_factory, get_small_default_factory, draw_boxes
 from factory.agents import RandomAgent
-# from factory.environments import FactoryEnv
 
 import time
 import os
@@ -97,7 +96,7 @@ def run_the_app():
     st.markdown("# Simulation")
 
     speed = st.slider("Simulation speed", 1, 250, 2, 1)
-    steps = st.slider("Maximum number of steps", 100, 1000, 250, 1)
+    max_steps = st.slider("Maximum number of steps", 100, 1000, 250, 1)
 
     start = st.button('Start Simulation')
     top_text = st.empty()
@@ -109,8 +108,9 @@ def run_the_app():
         multi_agent = [RandomAgent(t, factory) for t in factory.tables]
 
     if start:
-        for table_idx in range(steps):
+        for table_idx in range(max_steps):
             if multi_agent:
+                # TODO: note that this is naive round robin for now
                 agent = multi_agent[table_idx % len(multi_agent)]
             action = agent.compute_action()
             top_text.empty()
@@ -126,6 +126,7 @@ def run_the_app():
         top_text.empty()
         remaining_cores = len([t for t in factory.tables if t.has_core()])
         top_text.text(f"Simulation completed, {num_cores - remaining_cores} of total {num_cores} delivered.")
+        # TODO report time/steps needed in percent
 
 
 def load_image(file_name="./large_factory.jpg"):

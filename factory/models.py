@@ -145,6 +145,7 @@ class Core:
         self.table = table
         table.set_core(self)
         self.cycle = cycle
+        self.num_phases = len(cycle)
         self.current_phase: Phase = list(cycle)[0]
         self.current_target: Node = cycle[self.current_phase]
         self.name = name
