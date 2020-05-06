@@ -1,10 +1,14 @@
-from factory.util import get_default_factory, get_small_default_factory, factory_string
+from factory.util import get_default_factory, get_small_default_factory, factory_string, draw_box, draw_boxes
 from factory.agents import RandomAgent
 # from factory.environments import FactoryEnv
 
 import time
 import os
 import streamlit as st
+import cv2
+import numpy as np
+
+CONVERT_FROM_BGR = False
 
 
 def main():
@@ -53,9 +57,10 @@ def run_the_app():
 
     if model == "Default Factory":
         factory = get_default_factory(seed, num_tables, num_cores, num_phases)
+        img_name = "./assets/large_factory.jpg"
     else:
         factory = get_small_default_factory(seed, num_tables, num_cores, num_phases)
-
+        img_name = "./assets/small_factory.jpg"
     st.sidebar.markdown("# Agents")
 
     multi_agent = st.sidebar.checkbox("Multi-Agent")
@@ -96,7 +101,10 @@ def run_the_app():
 
     start = st.button('Start Simulation')
     top_text = st.empty()
-    factory_text = st.empty()
+    factory_img = st.empty()
+
+    original_image = load_image(img_name)
+
     if multi_agent:
         multi_agent = [RandomAgent(t, factory) for t in factory.tables]
 
@@ -109,12 +117,20 @@ def run_the_app():
             top_text.text("Agent: " + str(agent.get_location().name) +
                           " | Location: " + str(agent.get_location().coordinates) +
                           "\nIntended action: " + str(action) + "\nResult: " + str(agent.take_action(action)))
-            factory_text.empty()
-            factory_text.code(factory_string(factory, line_break="\n\n"))
+            factory_img.empty()
+            image = draw_boxes(factory, original_image)
+            factory_img.image(image.astype(np.uint8), use_column_width=True)
             time.sleep(1.0 / speed)
+            if factory.done():
+                break
         top_text.empty()
         remaining_cores = len([t for t in factory.tables if t.has_core()])
         top_text.text(f"Simulation completed, {num_cores - remaining_cores} of total {num_cores} delivered.")
+
+
+def load_image(file_name="./large_factory.jpg"):
+    image = cv2.imread(file_name, cv2.IMREAD_COLOR)
+    return image
 
 
 @st.cache(show_spinner=False)
