@@ -170,6 +170,10 @@ class Factory:
         self.rails = rails
         self.tables = tables
         self.name = name
+        self.cores = [t.core for t in self.tables if t.has_core()]
+
+    def done(self):
+        return all([c.done() for c in self.cores])
 
     def set_tables(self, tables: List[Table]):
         self.tables = tables

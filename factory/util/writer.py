@@ -1,5 +1,38 @@
 from ..models import Factory, Node, Direction
+import cv2
+import numpy as np
 SCALE_X, SCALE_Y = 4, 2
+
+
+def draw_boxes(factory: Factory, original_img: np.array):
+    img = np.copy(original_img)
+    for node in factory.nodes:
+        coords = node.coordinates
+        pos = (coords[0] * 100, coords[1] * 100)
+        text = node_text(node)
+        img = draw_box(img, pos, text)
+    return img
+
+
+def draw_box(img: np.array, pos=(0, 0), text: str = "C"):
+    top_left = pos
+    bottom_right = (pos[0] + 100, pos[1] + 100)
+    if text is "C":
+        thickness = -1
+        color = (255, 0, 0)
+    elif text is "T":
+        thickness = -1
+        color = (0, 255, 0)
+    else:
+        thickness = 4
+        color = (255, 0, 0)
+
+    img = cv2.rectangle(img, top_left, bottom_right, color, thickness)
+
+    position = (pos[0] + 45, pos[1] + 45)
+    if text in ["C", "T"]:
+        img = cv2.putText(img, text, position, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 4, cv2.LINE_AA)
+    return img
 
 
 def factory_string(factory: Factory, fill_char="·", line_break="\n") -> str:
