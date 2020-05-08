@@ -17,6 +17,7 @@ def main():
     app_mode = st.sidebar.selectbox("Choose the app mode", [
         "Show instructions",
         "Run the app",
+        "Show the controls",
         "Show the roadmap",
         # "Show models source code",
         # "Show controls source code",
@@ -27,7 +28,11 @@ def main():
         st.sidebar.success('To continue select "Run the app".')
     elif app_mode == "Show the roadmap":
         readme_text.empty()
-        st.code(get_file_content_as_string("roadmap.md"))
+        st.markdown(get_file_content_as_string("roadmap.md"))
+    elif app_mode == "Show the controls":
+        readme_text.empty()
+        st.markdown(get_file_content_as_string("controls.md"))
+        st.image("assets/directions.jpg")
     elif app_mode == "Show models source code":
         readme_text.empty()
         st.code(get_file_content_as_string("factory/models.py"))
