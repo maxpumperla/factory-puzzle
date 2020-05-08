@@ -1,6 +1,4 @@
-# LPoC Factory Solver implementation
-
-Full Python implementation of the LPoC Factory case study.
+# RL Factory Solver
 
 ## Installation
 
