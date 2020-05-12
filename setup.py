@@ -28,7 +28,7 @@ setuptools.setup(
     platforms=["Linux", "OS-X", "Windows"],
     include_package_data=True,
     install_requires=[
-        "gym", "ray[rllib]", "streamlit", "opencv-python"
+        "gym", "ray[rllib]", "tensorflow", "streamlit", "opencv-python"
     ],
     extras_require={
         "dev": ["black", "pre-commit", "pytest"],

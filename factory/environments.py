@@ -5,7 +5,6 @@ from factory.models import Factory, Table, Direction, Node
 from factory.controls import TableController, Action
 from factory.util import print_factory, factory_string
 
-from abc import ABC
 from copy import deepcopy
 
 import gym
@@ -15,23 +14,38 @@ import numpy as np
 from typing import Callable
 
 
+def check_neighbour(node: Node, direction: Direction, factory: Factory):
+    """If an agent has a neighbour in the specified direction, add a 1,
+    else 0 to the observation space. If that neighbour is free, add 1,
+    else 0 (a non-existing neighbour counts as occupied).
+    """
+    has_direction = node.has_neighbour(direction)
+    is_occupied = True
+    if has_direction:
+        node: Node = node.get_neighbour(direction)
+        if node.is_rail:
+            rail = factory.get_rail(node)
+            is_occupied = rail.shuttle_node().has_table()
+        else:
+            is_occupied = node.has_table()
+    return [has_direction, not is_occupied]
+
+
 def get_observations(agent_id: int, factory: Factory) -> np.array:
     """Get observation of one agent (here the same as Table).
-    We track the agent ID, its position, the available directions
-    to go to, if the table has a core. In case it does, track the
-    coordinates of the target node of the core.
-
-    TODO: should we track FREE neighbours? this would involve knowledge of controllers
-    TODO: track relative positions to other agents?
-    TODO: track shortest path / distance to target?
     """
+    # Agent ID and coordinates (3)
     agent: Table = factory.tables[agent_id]
     obs = [agent_id]
     obs += list(agent.node.coordinates)
-    obs.append(agent.node.has_neighbour(Direction.up))
-    obs.append(agent.node.has_neighbour(Direction.right))
-    obs.append(agent.node.has_neighbour(Direction.down))
-    obs.append(agent.node.has_neighbour(Direction.left))
+
+    # Direct neighbours available and free? (8)
+    obs += check_neighbour(agent.node, Direction.up, factory)
+    obs += check_neighbour(agent.node, Direction.right, factory)
+    obs += check_neighbour(agent.node, Direction.down, factory)
+    obs += check_neighbour(agent.node, Direction.left, factory)
+
+    # Has core and core coordinates? (3)
     obs.append(agent.has_core())
     if agent.has_core():
         current_target: Node = agent.core.current_target
@@ -42,7 +56,7 @@ def get_observations(agent_id: int, factory: Factory) -> np.array:
 
 
 def get_observation_space() -> gym.Space:
-    return gym.Space.Box(low=-1, high=10, shape=(10,), dtype=np.float32)
+    return gym.Space.Box(low=-1, high=10, shape=(14,), dtype=np.float32)
 
 
 def get_reward(agent_id: int, factory: Factory) -> float:
