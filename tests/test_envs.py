@@ -20,10 +20,12 @@ def test_stats_tracker():
 
     assert sum(len(v) for k, v in tracker.moves.items()) == 100
     for result in ActionResult:
+        # expect every kind of movement
         assert result in tracker.moves.get(agent_id)
 
     rewards = sum(res.reward() for res in tracker.moves.get(agent_id))
     invalid = len([m for m in tracker.moves.get(agent_id) if m is ActionResult.INVALID])
     collisions = len([m for m in tracker.moves.get(agent_id) if m is ActionResult.COLLISION])
 
+    # negative rewards are the sum of invalids and collisions.
     assert invalid + collisions + rewards == 0

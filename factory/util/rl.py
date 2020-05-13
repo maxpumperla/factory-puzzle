@@ -9,6 +9,7 @@ import numpy as np
 from typing import Union
 
 # we initialize ray, once this module gets imported for the first time.
+ray.shutdown()
 ray.init(
     log_to_driver=True,
     memory=12000 * 1024 * 1024,

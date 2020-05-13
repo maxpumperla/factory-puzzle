@@ -3,6 +3,7 @@ We'll mainly use this abstraction for testing heuristics and loading RLlib agent
 from abc import ABC, abstractmethod
 import os
 import pickle
+import numpy as np
 from factory.models import Factory, Table, Node
 from factory.controls import Action, ActionResult, Controller, TableAndRailController
 
@@ -19,7 +20,7 @@ class Agent(ABC):
         return self.controller.take_action(action)
 
     @abstractmethod
-    def compute_action(self) -> Action:
+    def compute_action(self, observations: np.ndarray) -> Action:
         """This is where the magic happens. This is modeled after Ray's convention."""
         raise NotImplementedError
 
@@ -43,7 +44,7 @@ class RandomAgent(Agent):
         self.controller: TableAndRailController = TableAndRailController(table, factory, controller_name)
         self.name = name
 
-    def compute_action(self) -> Action:
+    def compute_action(self, observations=None) -> Action:
         return Action.random_action()
 
     def get_location(self) -> Node:
@@ -66,16 +67,16 @@ class RayAgent(Agent):
         with open(config_path, "rb") as f:
             config = pickle.load(f)
 
-        if "num_workers" in config:
-            config["num_workers"] = min(2, config["num_workers"])
+        # if "num_workers" in config:
+        #     config["num_workers"] = min(2, config["num_workers"])
 
         agent = agent_cls(env=env_name, config=config)
         agent.restore(policy_file_name)
 
         self.agent = agent
 
-    def compute_action(self) -> Action:
-        return Action.random_action()
+    def compute_action(self, observations) -> Action:
+        return Action(self.agent.compute_action(observations))
 
     def get_location(self) -> Node:
         return self.controller.table.node
