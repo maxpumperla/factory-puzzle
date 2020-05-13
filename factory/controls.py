@@ -22,12 +22,12 @@ class Action(enum.IntEnum):
 class ActionResult(enum.IntEnum):
     """Result of an action with attached rewards."""
     NONE = 0,
-    MOVED = 0,
-    INVALID = -1
-    COLLISION = -1
+    MOVED = 1,
+    INVALID = 2
+    COLLISION = 3
 
     def reward(self):
-        return self.value
+        return 0 if self.value < 2 else -1
 
 
 class Controller(ABC):
@@ -50,7 +50,7 @@ class BaseTableController(Controller):
         self.factory = factory
         self.name = name
 
-    def _move_table(self, to: Node) -> None:
+    def _move_table(self, to: Node) -> ActionResult:
         """Move table to an adjacent node. Cores are moved automatically.
         If we move on a rail, also move the shuttle. If the destination
         completes a phase, mark it as such.
@@ -69,6 +69,7 @@ class BaseTableController(Controller):
             self.table.is_at_target = True
         else:
             self.table.is_at_target = False
+        return ActionResult.MOVED
 
     def _move_to_rail(self, rail, neighbour) -> ActionResult:
         raise NotImplementedError
@@ -76,10 +77,9 @@ class BaseTableController(Controller):
     def take_action(self, action: Action) -> ActionResult:
         """Attempt to carry out a specified action.
         """
+        self.table.is_at_target = False  # Reset target
         node = self.table.node
-        if action.name == "none":
-            # if we don't move, we don't increase the "at target" counter
-            self.table.is_at_target = False
+        if action is Action.none:
             return ActionResult.NONE
         direction = Direction(action.value)
         has_neighbour = node.has_neighbour(direction)
@@ -89,7 +89,7 @@ class BaseTableController(Controller):
             neighbour = node.get_neighbour(direction)
             if neighbour.has_table():
                 return ActionResult.COLLISION
-            elif neighbour.is_rail and not node.is_rail:
+            elif neighbour.is_rail and not node.is_rail:  # node -> rail
                 # can we hop on the rail?
                 rail = self.factory.get_rail(node=neighbour)
                 if rail.is_free():
@@ -97,10 +97,8 @@ class BaseTableController(Controller):
                 else:
                     # target shuttle is blocked with a table.
                     return ActionResult.INVALID
-            else:
-                # Move table from a) node to node, b) rail to rail or c) rail to node
-                self._move_table(neighbour)
-                return ActionResult.MOVED
+            else:  # Move table from a) node -> node, b) rail -> rail or c) rail -> node
+                return self._move_table(neighbour)
 
 
 class TableAndRailController(BaseTableController):
@@ -113,8 +111,7 @@ class TableAndRailController(BaseTableController):
 
     def _move_to_rail(self, rail, neighbour):
         rail.order_shuttle(neighbour)
-        self._move_table(neighbour)
-        return ActionResult.MOVED
+        return self._move_table(neighbour)
 
 
 class TableController(BaseTableController):
@@ -127,8 +124,7 @@ class TableController(BaseTableController):
 
     def _move_to_rail(self, rail, neighbour):
         if neighbour.has_shuttle:
-            self._move_table(neighbour)
-            return ActionResult.MOVED
+            return self._move_table(neighbour)
         # shuttle not in position.
         return ActionResult.INVALID
 
@@ -144,7 +140,7 @@ class RailController(Controller):
 
     def take_action(self, action: Action) -> ActionResult:
         node = self.rail.shuttle_node()
-        if action.name == "none":
+        if action is Action.none:
             return ActionResult.NONE
         direction = Direction(action.value)
         has_neighbour = node.has_neighbour(direction)

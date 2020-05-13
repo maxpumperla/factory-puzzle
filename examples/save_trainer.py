@@ -15,13 +15,10 @@ config["num_gpus"] = 0
 config["num_workers"] = 4
 config["eager"] = False
 
-register_env("factory", lambda _: MultiAgentFactoryEnv())
+register_env("factory", lambda _: FactoryEnv())
 trainer = dqn.DQNTrainer(config=config, env="factory")
 
-env = MultiAgentFactoryEnv()
-print(env.reset())
-
-for i in range(100):
+for i in range(101):
     result = trainer.train()
     print(pretty_print(result))
     if i % 50 == 0:

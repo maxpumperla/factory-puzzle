@@ -2,7 +2,7 @@
 The environment specifies what agents can observe and how
 they are rewarded for actions."""
 from factory.models import Factory, Table, Direction, Node
-from factory.controls import TableController, Action, ActionResult
+from factory.controls import Action, ActionResult, TableAndRailController
 from factory.util import print_factory, factory_string
 from factory.config import SIMULATION_CONFIG, get_factory_from_config
 
@@ -12,7 +12,7 @@ import gym
 from gym import spaces
 from ray import rllib
 import numpy as np
-from typing import Callable, List, Dict
+from typing import List, Dict
 
 
 class StatisticsTracker:
@@ -99,7 +99,7 @@ def get_reward(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> f
     reward = 0.0
 
     # sum negative rewards due to collisions and illegal moves
-    reward += sum(m.reward() / 200. for m in moves.get(agent_id))
+    reward += sum(m.reward() / 100. for m in moves.get(agent_id))
 
     # high incentive for reaching a target
     time_taken = (max_num_steps - steps) / float(max_num_steps)
@@ -117,7 +117,7 @@ def get_done(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> boo
     """We're done with the table if it doesn't have a core anymore or we're out of moves.
     """
     agent: Table = factory.tables[agent_id]
-    return not agent.has_core() or tracker.step_count > tracker.max_num_steps
+    return not agent.has_core()  # or tracker.step_count > tracker.max_num_steps
 
 
 class FactoryEnv(gym.Env):
@@ -132,6 +132,7 @@ class FactoryEnv(gym.Env):
         self.tracker = StatisticsTracker.from_config(self.config)
         self.factory = self.tracker.factory
         self.initial_factory = deepcopy(self.factory)
+        self.current_agent = 0
 
         self.num_actions = config.get("actions")
         self.action_space = spaces.Discrete(self.num_actions)
@@ -142,19 +143,21 @@ class FactoryEnv(gym.Env):
             dtype=np.float32
         )
 
-    def step(self, action):
+    def _step(self, action):
         assert action in range(self.num_actions)
 
-        agent_id = 0
-        table = self.factory.tables[agent_id]
-        controller = TableController(table, self.factory)
+        table = self.factory.tables[self.current_agent]
+        controller = TableAndRailController(table, self.factory)
         action_result = controller.take_action(Action(action))
-        self.tracker.add_move(agent_id, action_result)
+        self.tracker.add_move(self.current_agent, action_result)
 
-        observations: np.ndarray = get_observations(agent_id, self.factory)
-        rewards = get_reward(agent_id, self.factory, self.tracker)
-        done = get_done(agent_id, self.factory, self.tracker)
+        observations: np.ndarray = get_observations(self.current_agent, self.factory)
+        rewards = get_reward(self.current_agent, self.factory, self.tracker)
+        done = get_done(self.current_agent, self.factory, self.tracker)
         return observations, rewards, done, {}
+
+    def step(self, action):
+        return self._step(action)
 
     def render(self, mode='human'):
         if mode == 'ansi':
@@ -168,7 +171,7 @@ class FactoryEnv(gym.Env):
         # TODO later on make this reset to a random factory with same layout
         #  by using: self.factory = get_factory_from_config(self.config)
         self.factory = deepcopy(self.initial_factory)
-        return get_observations(0, self.factory)
+        return get_observations(self.current_agent, self.factory)
 
 
 class RoundRobinFactoryEnv(FactoryEnv):
@@ -179,20 +182,9 @@ class RoundRobinFactoryEnv(FactoryEnv):
         self.num_agents = self.config.get("num_tables")
 
     def step(self, action):
-        assert action in range(self.num_actions)
-
-        table = self.factory.tables[self.current_agent]
-        controller = TableController(table, self.factory)
-        action_result = controller.take_action(Action(action))
-        self.tracker.add_move(self.current_agent, action_result)
-
-        observations: np.ndarray = get_observations(self.current_agent, self.factory)
-        rewards = get_reward(self.current_agent, self.factory, self.tracker)
-        done = get_done(self.current_agent, self.factory, self.tracker)
-
+        result = self._step(action)
         self.current_agent = (self.current_agent + 1) % self.num_agents
-
-        return observations, rewards, done, {}
+        return result
 
 
 class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv):
@@ -218,12 +210,13 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv):
 
     def step(self, action: Dict):
         tables = self.factory.tables
-        controllers = [TableController(t, self.factory) for t in tables]
+        controllers = [TableAndRailController(t, self.factory) for t in tables]
 
         keys = action.keys()
-        for i in keys:
-            assert action.get(i) is not None, action
-            controllers[i].take_action(Action(action.get(i)))
+        for current_agent in keys:
+            assert action.get(current_agent) is not None
+            action_result = controllers[current_agent].take_action(Action(action.get(current_agent)))
+            self.tracker.add_move(current_agent, action_result)
 
         observations = {i: get_observations(i, self.factory) for i in keys}
         rewards = {i: get_reward(i, self.factory, self.tracker) for i in keys}

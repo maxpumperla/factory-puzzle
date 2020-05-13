@@ -74,9 +74,8 @@ def run_the_app():
     multi_agent = st.sidebar.checkbox("Multi-Agent")
 
     agent_type = st.sidebar.selectbox("Choose an agent type:", [
+        "Ray agent",
         "Random agent",
-        "Simple heuristic agent",
-        "RLlib agent"
     ])
 
     table_agent = st.sidebar.selectbox("Choose an agent to control (single-agent):", [
@@ -87,20 +86,11 @@ def run_the_app():
     if agent_type == "Random agent":
         agent = RandomAgent(factory.tables[table_idx], factory, table_agent)
     else:
-        raise NotImplementedError
+        filename = st.text_input('Enter path to checkpoint:')
+        env_type = environment_sidebar()
 
-    st.sidebar.markdown("# Environment")
-
-    env_type = st.sidebar.selectbox("Choose an environment:", [
-        "FactoryEnv (gym)",
-        "FactoryVectorEnv (RLlib)",
-        "FactoryMultiAgentEnv (RLlib)"
-    ])
-    if env_type == "FactoryEnv (gym)":
-        pass
-        # env = FactoryEnv(factory, 5)
-    else:
-        raise NotImplementedError
+        register_env("factory", lambda _: FactoryEnv())
+        ENV = "factory"
 
     st.markdown("# Simulation")
 
@@ -146,6 +136,18 @@ def load_image(file_name="./large_factory.jpg"):
 @st.cache(show_spinner=False)
 def get_file_content_as_string(path):
     return open(path).read()
+
+
+def environment_sidebar():
+    st.sidebar.markdown("# Environment")
+
+    env_type = st.sidebar.selectbox("Choose an environment:", [
+        "FactoryEnv",
+        "RoundRobinFactoryEnv",
+        "MultiAgentFactoryEnv"
+    ])
+    # TODO: use for experimental setup
+    return env_type
 
 
 if __name__ == "__main__":
