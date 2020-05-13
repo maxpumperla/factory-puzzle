@@ -1,12 +1,15 @@
 import ray
+from ray.rllib import models
 import gym
 from ray import tune
+from ray.tune import schedulers
 import os
 import random
 import numpy as np
 from typing import Union
 
 # we initialize ray, once this module gets imported for the first time.
+ray.shutdown()
 ray.init(
     log_to_driver=True,
     memory=12000 * 1024 * 1024,
@@ -27,7 +30,7 @@ HYPER_PARAM_MUTATIONS = {
 
 
 def default_scheduler():
-    return tune.schedulers.PopulationBasedTraining(
+    return schedulers.PopulationBasedTraining(
         time_attr='training_iteration',
         metric='episode_reward_mean',
         mode='max',
@@ -40,16 +43,18 @@ def default_scheduler():
 
 
 def default_model():
-    model = ray.rllib.models.MODEL_DEFAULTS.copy()
+    model = models.MODEL_DEFAULTS.copy()
     model['fcnet_hiddens'] = [256, 256]
     return model
 
 
-def run_config(env: Union[ray.rllib.BaseEnv, gym.Env], algo='PPO',
-               local_dir=os.path.expanduser("."), scheduler=default_scheduler(),
+def run_config(env: Union[ray.rllib.BaseEnv, gym.Env],
+               algorithm='PPO',
+               local_dir=os.path.expanduser("."),
+               scheduler=default_scheduler(),
                model=default_model()):
     return {
-        'run_or_experiment': algo,
+        'run_or_experiment': algorithm,
         'scheduler': scheduler,
         'num_samples': 4,
         'stop': Stopper().stop,

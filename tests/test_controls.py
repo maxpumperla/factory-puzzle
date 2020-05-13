@@ -59,9 +59,11 @@ def test_table_controller():
     res = controller.take_action(Action.right)
     assert res == ActionResult.MOVED
     assert table.node == node_c
+    assert not table.is_at_target
 
     # Move table to target. The production phase is over, so the core is gone.
     res = controller.take_action(Action.right)
     assert res == ActionResult.MOVED
     assert table.node == target
     assert not table.has_core()
+    assert table.is_at_target

@@ -2,7 +2,7 @@ from factory.models import Node, Direction, Rail, Factory, Table, Core, Phase
 import random
 
 
-def get_default_factory(random_seed, num_tables=8, num_cores=3, num_phases=1) -> Factory:
+def get_default_factory(random_seed=None, num_tables=8, num_cores=3, num_phases=1, **kwargs) -> Factory:
     """
                     19--01
                         |
@@ -18,7 +18,8 @@ def get_default_factory(random_seed, num_tables=8, num_cores=3, num_phases=1) ->
         |               |
         14--13--12--11--07
     """
-    random.seed(random_seed)
+    if random_seed:
+        random.seed(random_seed)
 
     node_19   = Node("pt19",   coordinates=(4, 0))
     node_00   = Node("pt00",   coordinates=(4, 1))  # TR
@@ -111,7 +112,7 @@ def get_default_factory(random_seed, num_tables=8, num_cores=3, num_phases=1) ->
     return Factory(nodes, rails, tables, "DefaultFactory")
 
 
-def get_small_default_factory(random_seed, num_tables=4, num_cores=2, num_phases=1) -> Factory:
+def get_small_default_factory(random_seed=None, num_tables=4, num_cores=2, num_phases=1, **kwargs) -> Factory:
     """
     1--2-----2--3
     |           |
@@ -121,7 +122,8 @@ def get_small_default_factory(random_seed, num_tables=4, num_cores=2, num_phases
     |     |
     1--7--5
     """
-    random.seed(random_seed)
+    if random_seed:
+        random.seed(random_seed)
 
     node_1_c = Node("pt1_c", coordinates=(0, 0), is_rail=True)
     node_1_b = Node("pt1_b", coordinates=(0, 1), is_rail=True)

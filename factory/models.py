@@ -32,6 +32,8 @@ class Table:
         self.node = node
         self.core = core
         self.name = name
+        # Since tables act as agents, they (not cores) know when they're at a target
+        self.is_at_target = False
     
     def has_core(self) -> bool:
         return self.core is not None
@@ -149,7 +151,7 @@ class Core:
         self.current_phase: Phase = list(cycle)[0]
         self.current_target: Node = cycle[self.current_phase]
         self.name = name
-    
+
     def done(self):
         return not bool(self.cycle)
     

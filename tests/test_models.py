@@ -82,7 +82,7 @@ def test_get_rail():
 
     nodes = [node_a, node_b, node_c]
     rail = Rail(nodes=nodes, shuttle=node_a)
-    factory = Factory(nodes, [rail], None)
+    factory = Factory(nodes, [rail], [])
 
     assert factory.get_rail(node_a) == rail
 
