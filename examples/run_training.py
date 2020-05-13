@@ -1,7 +1,9 @@
 from ray.tune import run
 from factory.util.rl import run_config
-from factory.environments import FactoryMultiAgentEnv
+from factory.environments import MultiAgentFactoryEnv
+from ray.tune.registry import register_env
 
 
-env = FactoryMultiAgentEnv()
-trials = run(run_config(env))
+register_env("factory", lambda _: MultiAgentFactoryEnv())
+
+trials = run(**run_config(env="factory"))

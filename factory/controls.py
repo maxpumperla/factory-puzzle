@@ -23,8 +23,8 @@ class ActionResult(enum.IntEnum):
     """Result of an action with attached rewards."""
     NONE = 0,
     MOVED = 0,
-    INVALID = -2
-    COLLISION = -2
+    INVALID = -1
+    COLLISION = -1
 
     def reward(self):
         return self.value
@@ -66,6 +66,9 @@ class BaseTableController(Controller):
 
         if self.table.get_target() is to:
             self.table.phase_completed()
+            self.table.is_at_target = True
+        else:
+            self.table.is_at_target = False
 
     def _move_to_rail(self, rail, neighbour) -> ActionResult:
         raise NotImplementedError
@@ -75,6 +78,8 @@ class BaseTableController(Controller):
         """
         node = self.table.node
         if action.name == "none":
+            # if we don't move, we don't increase the "at target" counter
+            self.table.is_at_target = False
             return ActionResult.NONE
         direction = Direction(action.value)
         has_neighbour = node.has_neighbour(direction)

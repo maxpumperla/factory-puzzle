@@ -217,15 +217,14 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv):
         )
 
     def step(self, action: Dict):
-        assert len(action) is 1
         tables = self.factory.tables
         controllers = [TableController(t, self.factory) for t in tables]
 
-        for i in action.keys():
+        keys = action.keys()
+        for i in keys:
             assert action.get(i) is not None, action
             controllers[i].take_action(Action(action.get(i)))
 
-        keys = action.keys()
         observations = {i: get_observations(i, self.factory) for i in keys}
         rewards = {i: get_reward(i, self.factory, self.tracker) for i in keys}
         dones = {i: get_done(i, self.factory, self.tracker) for i in keys}
