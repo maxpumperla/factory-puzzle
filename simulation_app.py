@@ -14,14 +14,13 @@ import numpy as np
 
 CONVERT_FROM_BGR = False
 
-CALLED_RAY = False
-if not CALLED_RAY:
-    ray.shutdown()
+@st.cache()
+def init_ray():
     ray.init()
-    CALLED_RAY = True
 
 
 def main():
+    init_ray()
     readme_text = st.markdown(get_file_content_as_string(os.path.expanduser("README.md")))
 
     st.sidebar.title("Factory Solver Settings")

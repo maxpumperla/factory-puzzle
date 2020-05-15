@@ -3,6 +3,7 @@ from factory.agents import RayAgent
 from factory.controls import TableAndRailController, ActionResult, Action
 from factory.environments import RoundRobinFactoryEnv
 
+import ray
 import ray.rllib.agents.dqn as dqn
 from ray.tune.registry import register_env
 
@@ -12,7 +13,13 @@ import numpy as np
 
 
 def main():
+    init_ray()
     run_the_app()
+
+
+@st.cache()
+def init_ray():
+    ray.init()
 
 
 @st.cache(show_spinner=True, allow_output_mutation=True)
