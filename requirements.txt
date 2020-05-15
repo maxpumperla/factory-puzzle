@@ -1,4 +1,5 @@
 streamlit 
 opencv-contrib-python-headless
+tensorflow
 ray[rllib]
 gym
