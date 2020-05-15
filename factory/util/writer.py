@@ -4,34 +4,51 @@ import numpy as np
 SCALE_X, SCALE_Y = 4, 2
 
 
+def node_type(node: Node) -> str:
+    text = "N"
+    if node.has_table():
+        text = "T"
+        if node.table.has_core():
+            text = "C"
+    return text
+
+
 def draw_boxes(factory: Factory, original_img: np.array):
     img = np.copy(original_img)
     for node in factory.nodes:
         coords = node.coordinates
         pos = (coords[0] * 100, coords[1] * 100)
-        text = node_text(node)
-        img = draw_box(img, pos, text)
+        text = node.name
+        nd_type = node_type(node)
+        img = draw_box(img, pos, text, nd_type)
     return img
 
 
-def draw_box(img: np.array, pos=(0, 0), text: str = "C"):
+def draw_box(img: np.array, pos=(0, 0), text: str = "pt_01", nd_type: str = "N"):
     top_left = pos
     bottom_right = (pos[0] + 100, pos[1] + 100)
-    if text is "C":
+    if nd_type is "C":
         thickness = -1
         color = (255, 0, 0)
-    elif text is "T":
+    elif nd_type is "T":
         thickness = -1
         color = (0, 255, 0)
     else:
-        thickness = 4
-        color = (255, 0, 0)
+        thickness = 2
+        color = (0, 0, 0)
 
     img = cv2.rectangle(img, top_left, bottom_right, color, thickness)
 
-    position = (pos[0] + 45, pos[1] + 50)
-    if text in ["C", "T"]:
-        img = cv2.putText(img, text, position, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 4, cv2.LINE_AA)
+    top_left = (pos[0] + 2, pos[1] + 10)
+    bottom_right = (pos[0] + 98, pos[1] + 40)
+    img = cv2.rectangle(img, top_left, bottom_right, (255, 255, 255), cv2.FILLED)
+    position = (pos[0] + 10, pos[1] + 30)
+    img = cv2.putText(img, text, position, cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 0), 2, cv2.LINE_AA)
+
+    if nd_type is not "N":
+        position = (pos[0] + 43, pos[1] + 70)
+        img = cv2.putText(img, nd_type, position, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 4, cv2.LINE_AA)
+
     return img
 
 
@@ -44,7 +61,7 @@ def factory_string(factory: Factory, fill_char="·", line_break="\n") -> str:
 
     for node in nodes:
         x, y = node.coordinates
-        text = node_text(node)
+        text = node_type(node)
         grid[y * SCALE_Y][x * SCALE_X] = text
         for direction, nb in node.neighbours.items():
             if nb:
@@ -63,15 +80,6 @@ def factory_string(factory: Factory, fill_char="·", line_break="\n") -> str:
 def print_factory(factory: Factory):
     clear_screen()
     print(factory_string(factory))
-
-
-def node_text(node: Node) -> str:
-    text = "N"
-    if node.has_table():
-        text = "T"
-        if node.table.has_core():
-            text = "C"
-    return text
 
 
 def clear_screen():

@@ -67,7 +67,7 @@ def has_core_neighbour(node: Node, factory: Factory):
 def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
     """Get observation of one agent (here the same as Table).
     """
-    # Agent ID and coordinates (3)
+    # Agent coordinates (2)
     agent: Table = factory.tables[agent_id]
     obs = [agent_id]
     obs += list(agent.node.coordinates)
@@ -85,6 +85,7 @@ def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
         obs += list(current_target.coordinates)
     else:
         obs += [-1, -1]
+
     return np.asarray(obs)
 
 
@@ -102,9 +103,9 @@ def get_reward(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> f
     reward += sum(m.reward() / 100. for m in moves.get(agent_id))
 
     # high incentive for reaching a target
-    time_taken = (max_num_steps - steps) / float(max_num_steps)
+    time_taken = max(0, (max_num_steps - steps) / float(max_num_steps))
     if agent.is_at_target:
-        reward += 10.0 * (1 - time_taken)
+        reward += 30.0 * (1 - time_taken)
 
     # If an agent without core is close to one with core, let it shy away
     if not agent.has_core():
@@ -116,8 +117,11 @@ def get_reward(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> f
 def get_done(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> bool:
     """We're done with the table if it doesn't have a core anymore or we're out of moves.
     """
+    # TODO: figure out why this trivial check results in episode_len_mean: 1
+    # if tracker.step_count > tracker.max_num_steps:
+    #     return True
     agent: Table = factory.tables[agent_id]
-    return not agent.has_core()  # or tracker.step_count > tracker.max_num_steps
+    return not agent.has_core()
 
 
 class FactoryEnv(gym.Env):
@@ -168,9 +172,10 @@ class FactoryEnv(gym.Env):
             super(FactoryEnv, self).render(mode=mode)
 
     def reset(self):
-        # TODO later on make this reset to a random factory with same layout
-        #  by using: self.factory = get_factory_from_config(self.config)
-        self.factory = deepcopy(self.initial_factory)
+        if self.config.get("random_init"):
+            self.factory = get_factory_from_config(self.config)
+        else:
+            self.factory = deepcopy(self.initial_factory)
         return get_observations(self.current_agent, self.factory)
 
 
@@ -235,5 +240,8 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv):
             super(MultiAgentFactoryEnv, self).render(mode=mode)
 
     def reset(self):
-        self.factory = deepcopy(self.initial_factory)
+        if self.config.get("random_init"):
+            self.factory = get_factory_from_config(self.config)
+        else:
+            self.factory = deepcopy(self.initial_factory)
         return {i: get_observations(i, self.factory) for i in range(self.num_agents)}

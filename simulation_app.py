@@ -1,5 +1,6 @@
 from factory.util import get_default_factory, get_small_default_factory, draw_boxes
 from factory.agents import RandomAgent, RayAgent
+from factory.controls import TableAndRailController, ActionResult
 from factory.environments import FactoryEnv, RoundRobinFactoryEnv, MultiAgentFactoryEnv, get_observations
 import ray.rllib.agents.dqn as dqn
 
@@ -81,19 +82,20 @@ def run_the_app():
         img_name = "./assets/small_factory.jpg"
     st.sidebar.markdown("# Agents")
 
-    # multi_agent = st.sidebar.checkbox("Multi-Agent")
+    multi_agent = st.sidebar.checkbox("Multi-Agent")
 
     agent_type = st.sidebar.selectbox("Choose an agent type:", [
         "Random agent",
         "Ray agent",
     ])
+    is_random = agent_type == "Random agent"
 
     table_agent = st.sidebar.selectbox("Choose an agent to control (single-agent):", [
         f"TableAgent_{i}" for i in range(num_tables)
     ])
     agent_id = int(table_agent[11])
 
-    if agent_type == "Random agent":
+    if is_random:
         agent = RandomAgent(factory.tables[agent_id], factory, table_agent)
     else:
         policy_file_name = st.text_input('Enter path to checkpoint:')
@@ -116,21 +118,28 @@ def run_the_app():
 
     original_image = load_image(img_name)
 
-    # if multi_agent:
-    #     multi_agent = [RandomAgent(t, factory) for t in factory.tables]
+    controllers = [TableAndRailController(t, factory) for t in factory.tables]
+
+    if multi_agent:
+        agent_id = 0
 
     if start:
-        for _ in range(max_steps):
-            # if multi_agent:
-            #     # TODO: note that this is naive round robin for now
-            #     agent = multi_agent[table_idx % len(multi_agent)]
-            obs = None if agent_type == "Random agent" else get_observations(agent_id, factory)
+        invalids = 0
+        collisions = 0
+        for i in range(max_steps):
+            if multi_agent:
+                agent_id = (agent_id + 1) % num_tables
+            obs = None if is_random else get_observations(agent_id, factory)
             action = agent.compute_action(obs)
             top_text.empty()
-            result = agent.take_action(action)
-            top_text.text("Agent: " + str(agent.get_location().name) +
-                          " | Location: " + str(agent.get_location().coordinates) +
-                          "\nIntended action: " + str(action) + "\nResult: " + str(result))
+
+            # controllers carry out the action suggested by agents for simplicity here
+            result = controllers[agent_id].take_action(action)
+            invalids += result == ActionResult.INVALID
+            collisions += result == ActionResult.COLLISION
+            top_text.text(f"Agent: {agent.get_location().name} | Location: {agent.get_location().coordinates}\n"
+                          f"Illegal moves: {invalids} | Collisions: {collisions}\n"
+                          f"Intended action: {action}\nResult: {result}")
             factory_img.empty()
             image = draw_boxes(factory, original_image)
             factory_img.image(image.astype(np.uint8), use_column_width=True)
@@ -139,8 +148,9 @@ def run_the_app():
                 break
         top_text.empty()
         remaining_cores = len([t for t in factory.tables if t.has_core()])
-        top_text.text(f"Simulation completed, {num_cores - remaining_cores} of total {num_cores} delivered.")
-        # TODO report time/steps needed in percent
+        top_text.text(f"Simulation completed, {num_cores - remaining_cores} of total {num_cores} delivered. \n"
+                      f"Illegal moves: {invalids} | Collisions: {collisions}\n"
+                      f"Steps taken to complete: {i}")
 
 
 def load_image(file_name="./large_factory.jpg"):

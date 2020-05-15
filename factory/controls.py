@@ -79,7 +79,7 @@ class BaseTableController(Controller):
         """
         self.table.is_at_target = False  # Reset target
         node = self.table.node
-        if action is Action.none:
+        if action.value == 4:
             return ActionResult.NONE
         direction = Direction(action.value)
         has_neighbour = node.has_neighbour(direction)
@@ -140,7 +140,7 @@ class RailController(Controller):
 
     def take_action(self, action: Action) -> ActionResult:
         node = self.rail.shuttle_node()
-        if action is Action.none:
+        if action.value == 4:
             return ActionResult.NONE
         direction = Direction(action.value)
         has_neighbour = node.has_neighbour(direction)
