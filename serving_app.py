@@ -1,11 +1,11 @@
 from factory.util import get_default_factory, get_small_default_factory, draw_boxes
-from factory.agents import RayAgent
+from factory.agents import RayAgent, RandomAgent
 from factory.controls import TableAndRailController, ActionResult, Action
-from factory.environments import RoundRobinFactoryEnv
+# from factory.environments import RoundRobinFactoryEnv
 
-import ray
-import ray.rllib.agents.dqn as dqn
-from ray.tune.registry import register_env
+# import ray
+# import ray.rllib.agents.dqn as dqn
+# from ray.tune.registry import register_env
 
 import streamlit as st
 import cv2
@@ -13,18 +13,17 @@ import numpy as np
 
 
 def main():
-    init_ray()
+    # init_ray()
     run_the_app()
 
 
-@st.cache()
-def init_ray():
-    ray.init()
+# @st.cache()
+# def init_ray():
+#     ray.init(webui_host='127.0.0.1')
 
 
 @st.cache(show_spinner=True, allow_output_mutation=True)
 def get_agent_and_factory(model_str, seed, num_tables, num_cores, num_phases):
-    print("called cache function")
     if model_str == "Default Factory":
         factory = get_default_factory(seed, num_tables, num_cores, num_phases)
         img_name = "./assets/large_factory.jpg"
@@ -34,12 +33,14 @@ def get_agent_and_factory(model_str, seed, num_tables, num_cores, num_phases):
 
     policy_file_name = "assets/dqn-small-1-1-3/checkpoint_101/checkpoint-101"
     env_name = "RoundRobinFactoryEnv"
-    register_env(env_name, lambda _: RoundRobinFactoryEnv())
-
-    agent_cls = dqn.DQNTrainer
-
-    agent = RayAgent(table=factory.tables[0], factory=factory, env_name=env_name,
-                     policy_file_name=policy_file_name, agent_cls=agent_cls)
+    # register_env(env_name, lambda _: RoundRobinFactoryEnv())
+    #
+    # agent_cls = dqn.DQNTrainer
+    #
+    # # TODO: just use tensorflow to load a saved_model, for now just mock the whole thing.
+    # agent = RayAgent(table=factory.tables[0], factory=factory, env_name=env_name,
+    #                  policy_file_name=policy_file_name, agent_cls=agent_cls)
+    agent = RandomAgent(table=factory.tables[0], factory=factory)
 
     return agent, factory, img_name
 
@@ -61,10 +62,16 @@ def run_the_app():
 
     st.markdown("# Model Serving")
 
-    st.markdown("To get results from your deployed model, you need to specify the table you want to control "
-                "and tell the system more about the specific situation in the factory."
-                "\n\nInternally we will process your input, feed it into the model and return a proposed action "
-                "that can be carried out in the actual factory.")
+    show_explanations = st.checkbox(label="How does it work?")
+    if show_explanations:
+        st.markdown("To get results from your deployed model, you need to specify the table you want to control "
+                    "and tell the system more about the specific situation in the factory. "
+                    "\n\nInternally we will process your input, feed it into the model and return a proposed action "
+                    "that can be carried out in the actual factory."
+                    "\n\nFor your convenience, we display the factory here and carry out the suggested action for "
+                    "visual feedback. When using our API, our backend will not track the progress of your factory. "
+                    "Instead, you're responsible for carrying out those actions in the real world and update the "
+                    "factory state accordingly.")
 
     suggested = st.markdown("### Suggested action: TBD")
     factory_img = st.empty()

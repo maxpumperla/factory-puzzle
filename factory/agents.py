@@ -67,9 +67,6 @@ class RayAgent(Agent):
         with open(config_path, "rb") as f:
             config = pickle.load(f)
 
-        # if "num_workers" in config:
-        #     config["num_workers"] = min(2, config["num_workers"])
-
         agent = agent_cls(env=env_name, config=config)
         agent.restore(policy_file_name)
 
