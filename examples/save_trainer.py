@@ -12,7 +12,7 @@ ray.init()
 config = dqn.DEFAULT_CONFIG.copy()
 config["num_gpus"] = 0
 config["num_workers"] = 4
-config["eager"] = True
+config["eager"] = False
 
 register_env("factory", lambda _: RoundRobinFactoryEnv())
 trainer = dqn.DQNTrainer(config=config, env="factory")
