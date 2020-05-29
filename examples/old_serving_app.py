@@ -31,7 +31,7 @@ def get_agent_and_factory(model_str, seed, num_tables, num_cores, num_phases):
         factory = get_small_default_factory(seed, num_tables, num_cores, num_phases)
         img_name = "./assets/small_factory.jpg"
 
-    policy_file_name = "assets/dqn-small-1-1-3/checkpoint_101/checkpoint-101"
+    policy_file_name = "../assets/dqn-small-1-1-3/checkpoint_101/checkpoint-101"
     env_name = "RoundRobinFactoryEnv"
     # register_env(env_name, lambda _: RoundRobinFactoryEnv())
     #
