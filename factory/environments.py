@@ -2,7 +2,7 @@
 The environment specifies what agents can observe and how
 they are rewarded for actions."""
 from factory.models import Factory, Table, Direction, Node
-from factory.controls import Action, ActionResult, TableAndRailController
+from factory.controls import Action, ActionResult, do_action
 from factory.util import print_factory, factory_string
 from factory.config import SIMULATION_CONFIG, get_factory_from_config
 
@@ -155,8 +155,7 @@ class FactoryEnv(gym.Env):
         assert action in range(self.num_actions)
 
         table = self.factory.tables[self.current_agent]
-        controller = TableAndRailController(table, self.factory)
-        action_result = controller.take_action(Action(action))
+        action_result = do_action(table, self.factory, Action(action))
         self.tracker.add_move(self.current_agent, action_result)
 
         observations: np.ndarray = get_observations(self.current_agent, self.factory)
@@ -213,12 +212,11 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
 
     def step(self, action: Dict):
         tables = self.factory.tables
-        controllers = [TableAndRailController(t, self.factory) for t in tables]
-
         keys = action.keys()
         for current_agent in keys:
-            assert action.get(current_agent) is not None
-            action_result = controllers[current_agent].take_action(Action(action.get(current_agent)))
+            action_id = action.get(current_agent)
+            assert action_id is not None
+            action_result = do_action(tables[current_agent], self.factory, Action(action_id))
             self.tracker.add_move(current_agent, action_result)
 
         observations = {i: get_observations(i, self.factory) for i in keys}

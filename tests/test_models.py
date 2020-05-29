@@ -25,7 +25,7 @@ def test_node_connectivity():
 
     with pytest.raises(Exception):
         # no self-connections
-        node_a.add_neighbour(node_a)
+        node_a.add_neighbour(node_a, Direction.left)
 
     node_b = Node()
     # b <- a
@@ -87,7 +87,7 @@ def test_get_rail():
     assert factory.get_rail(node_a) == rail
 
     node_d = Node()
-    assert factory.get_rail(node_d) == None
+    assert factory.get_rail(node_d) is None
 
 
 def test_core():

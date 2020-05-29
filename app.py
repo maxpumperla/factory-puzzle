@@ -1,6 +1,6 @@
 from factory.util import get_default_factory, get_small_default_factory, draw_boxes
 from factory.agents import RandomAgent, RayAgent
-from factory.controls import TableAndRailController, ActionResult
+from factory.controls import do_action, ActionResult
 from factory.environments import FactoryEnv, RoundRobinFactoryEnv, MultiAgentFactoryEnv, get_observations
 import ray.rllib.agents.dqn as dqn
 
@@ -95,13 +95,13 @@ def run_the_app():
     agent_id = int(table_agent[11])
 
     if is_random:
-        agent = RandomAgent(factory.tables[agent_id], factory, table_agent)
+        agent = RandomAgent(factory, table_agent)
     else:
         policy_file_name = st.text_input('Enter path to checkpoint:')
         env_name = environment_sidebar()
         agent_cls = dqn.DQNTrainer
         if policy_file_name:
-            agent = RayAgent(table=factory.tables[agent_id], factory=factory, env_name=env_name,
+            agent = RayAgent(factory=factory, env_name=env_name,
                              policy_file_name=policy_file_name, agent_cls=agent_cls)
         else:
             agent = None
@@ -117,7 +117,7 @@ def run_the_app():
 
     original_image = load_image(img_name)
 
-    controllers = [TableAndRailController(t, factory) for t in factory.tables]
+    tables = factory.tables
 
     if multi_agent:
         agent_id = 0
@@ -125,6 +125,7 @@ def run_the_app():
     if start:
         invalids = 0
         collisions = 0
+        i = 0
         for i in range(max_steps):
             if multi_agent:
                 agent_id = (agent_id + 1) % num_tables
@@ -133,10 +134,11 @@ def run_the_app():
             top_text.empty()
 
             # controllers carry out the action suggested by agents for simplicity here
-            result = controllers[agent_id].take_action(action)
+            table = tables[agent_id]
+            result = do_action(table, factory, action)
             invalids += result == ActionResult.INVALID
             collisions += result == ActionResult.COLLISION
-            top_text.text(f"Agent: {agent.get_location().name} | Location: {agent.get_location().coordinates}\n"
+            top_text.text(f"Agent: {table.node.name} | Location: {table.node.coordinates}\n"
                           f"Illegal moves: {invalids} | Collisions: {collisions}\n"
                           f"Intended action: {action}\nResult: {result}")
             factory_img.empty()

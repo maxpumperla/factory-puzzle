@@ -10,11 +10,11 @@ def test_stats_tracker():
 
     agent_id = 0
     table = factory.tables[agent_id]
-    agent = RandomAgent(table, factory)
+    agent = RandomAgent(factory)
 
     for i in range(100):
         action = agent.compute_action()
-        action_result = agent.take_action(action)
+        action_result = agent.take_action(table, action)
         tracker.add_move(agent_id, action_result)
         assert tracker.step_count < tracker.max_num_steps
 

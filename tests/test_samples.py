@@ -1,5 +1,4 @@
 from factory.util.samples import get_default_factory
-from factory.util.writer import print_factory
 
 
 def test_default_factory():
@@ -11,5 +10,3 @@ def test_default_factory():
 
     assert factory.tables[0].node.coordinates == (1, 6)
     assert factory.tables[0].core.current_target.coordinates == (4, 1)
-
-    # print_factory(factory)

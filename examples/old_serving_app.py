@@ -93,7 +93,7 @@ def run_the_app():
     if compute_action:
         action: Action = agent.compute_action(obs)
         top_text.empty()
-        result = controllers[agent_id].take_action(action)
+        result = controllers[agent_id].do_action(action)
 
         invalids += result == ActionResult.INVALID
         collisions += result == ActionResult.COLLISION

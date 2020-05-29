@@ -6,19 +6,20 @@ import time
 
 if __name__ == "__main__":
     factory = get_small_default_factory(1337)
-    agent = RandomAgent(factory.tables[0], factory)
-    env = FactoryEnv(factory, 5)
+    agent = RandomAgent(factory)
+    table = factory.tables[0]
+    env = FactoryEnv()
     for i in range(100):
         time.sleep(0.12)
         print_factory(factory)
         action = agent.compute_action()
-        print(">>> Agent location: ", agent.get_location().coordinates)
+        print(">>> Agent location: ", table.node.coordinates)
         print(">>> Intended action: ", action)
-        print(">>> Result: ", agent.take_action(action))
+        print(">>> Result: ", agent.take_action(table, action))
 
     factory = get_default_factory(123)
     time.sleep(2)
-    multi_agent = [RandomAgent(t, factory) for t in factory.tables]
+    multi_agent = [RandomAgent(factory) for t in factory.tables]
     num_agents = len(multi_agent)
     for i in range(300):
         time.sleep(0.05)
@@ -26,4 +27,4 @@ if __name__ == "__main__":
         agent = multi_agent[i % num_agents]
         action = agent.compute_action()
         print(">>> Moving multiple agents")
-        print(">>> Result: ", agent.take_action(action))
+        print(">>> Result: ", agent.take_action(table, action))
