@@ -1,10 +1,11 @@
 """In which environment are things happening? (where)
 The environment specifies what agents can observe and how
 they are rewarded for actions."""
-from factory.models import Table, Direction, Node
+from factory.models import Table
 from factory.simulation import Factory
 from factory.controls import Action, do_action
 from factory.util import print_factory, factory_string
+from factory.util.features import has_core_neighbour, get_neighbour_observations, get_one_hot_observations
 from factory.config import SIMULATION_CONFIG, factory_from_config
 
 from copy import deepcopy
@@ -16,59 +17,10 @@ import numpy as np
 from typing import Dict
 
 
-def check_neighbour(node: Node, direction: Direction, factory: Factory):
-    """If an agent has a neighbour in the specified direction, add a 1,
-    else 0 to the observation space. If that neighbour is free, add 1,
-    else 0 (a non-existing neighbour counts as occupied).
-    """
-    has_direction = node.has_neighbour(direction)
-    is_occupied = True
-    if has_direction:
-        node: Node = node.get_neighbour(direction)
-        if node.is_rail:
-            rail = factory.get_rail(node)
-            is_occupied = rail.shuttle_node().has_table()
-        else:
-            is_occupied = node.has_table()
-    return [has_direction, not is_occupied]
-
-
-def has_core_neighbour(node: Node, factory: Factory):
-    """If a node has at least one direct neighbour with a core, return True,
-    else False. We use this to inform tables without cores to move out of the way
-    of tables with cores."""
-    for direction in Direction:
-        has_dir, is_free = check_neighbour(node, direction, factory)
-        if has_dir and not is_free:
-            neighbour: Node = node.get_neighbour(direction)
-            if neighbour.has_table() and neighbour.table.has_core():
-                return True
-    return False
-
-
 def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
-    """Get observation of one agent (here the same as Table).
+    """Get observation of one agent given the current factory state.
     """
-    # Agent coordinates (2)
-    agent: Table = factory.tables[agent_id]
-    obs = [agent_id]
-    obs += list(agent.node.coordinates)
-
-    # Direct neighbours available and free? (8)
-    obs += check_neighbour(agent.node, Direction.up, factory)
-    obs += check_neighbour(agent.node, Direction.right, factory)
-    obs += check_neighbour(agent.node, Direction.down, factory)
-    obs += check_neighbour(agent.node, Direction.left, factory)
-
-    # Has core and core coordinates? (3)
-    obs.append(agent.has_core())
-    if agent.has_core():
-        current_target: Node = agent.core.current_target
-        obs += list(current_target.coordinates)
-    else:
-        obs += [-1, -1]
-
-    return np.asarray(obs)
+    return get_one_hot_observations(agent_id, factory)
 
 
 def get_reward(agent_id: int, factory: Factory) -> float:
