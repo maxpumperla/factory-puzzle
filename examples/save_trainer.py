@@ -14,7 +14,7 @@ config["num_gpus"] = 0
 config["num_workers"] = 4
 config["eager"] = False
 
-register_env("factory", lambda _: RoundRobinFactoryEnv())
+register_env("factory", lambda _: FactoryEnv())
 trainer = dqn.DQNTrainer(config=config, env="factory")
 
 for i in range(100):

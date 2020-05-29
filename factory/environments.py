@@ -21,11 +21,15 @@ class StatisticsTracker:
         self.max_num_steps = max_num_steps
         self.factory = factory
         self.step_count = 0
-        self.moves: Dict[int, List[ActionResult]] = {t: [] for t in range(len(factory.tables))}
+        self.moves: Dict[int, List[ActionResult]] = {t: [] for t in range(len(self.factory.tables))}
 
     def add_move(self, agent_id: int, move: ActionResult):
         self.moves.get(agent_id).append(move)
         self.step_count += 1
+
+    def reset(self):
+        self.step_count = 0
+        self.moves = {t: [] for t in range(len(self.factory.tables))}
 
     @staticmethod
     def from_config(config):
@@ -117,9 +121,8 @@ def get_reward(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> f
 def get_done(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> bool:
     """We're done with the table if it doesn't have a core anymore or we're out of moves.
     """
-    # TODO: figure out why this trivial check results in episode_len_mean: 1
-    # if tracker.step_count > tracker.max_num_steps:
-    #     return True
+    if tracker.step_count > tracker.max_num_steps:
+        return True
     agent: Table = factory.tables[agent_id]
     return not agent.has_core()
 
@@ -136,9 +139,10 @@ class FactoryEnv(gym.Env):
         self.tracker = StatisticsTracker.from_config(self.config)
         self.factory = self.tracker.factory
         self.initial_factory = deepcopy(self.factory)
-        self.current_agent = 0
-
+        self.num_agents = self.config.get("num_tables")
         self.num_actions = config.get("actions")
+
+        self.current_agent = 0
         self.action_space = spaces.Discrete(self.num_actions)
         self.observation_space = gym.spaces.Box(
             low=config.get("low"),
@@ -169,9 +173,10 @@ class FactoryEnv(gym.Env):
         elif mode == 'human':
             return print_factory(self.factory)
         else:
-            super(FactoryEnv, self).render(mode=mode)
+            super(self.__class__, self).render(mode=mode)
 
     def reset(self):
+        self.tracker.reset()
         if self.config.get("random_init"):
             self.factory = get_factory_from_config(self.config)
         else:
@@ -182,9 +187,8 @@ class FactoryEnv(gym.Env):
 class RoundRobinFactoryEnv(FactoryEnv):
 
     def __init__(self, config=None):
-        super(RoundRobinFactoryEnv, self).__init__(config)
+        super().__init__(config)
         self.current_agent = 0
-        self.num_agents = self.config.get("num_tables")
 
     def step(self, action):
         result = self._step(action)
@@ -192,24 +196,18 @@ class RoundRobinFactoryEnv(FactoryEnv):
         return result
 
 
-class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv):
+class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
     """Define a ray multi agent env"""
 
     def __init__(self, config=None):
-        if config is None:
-            config = SIMULATION_CONFIG
-        self.config = config
-        self.tracker = StatisticsTracker.from_config(self.config)
-        self.factory = self.tracker.factory
-        self.initial_factory = deepcopy(self.factory)
-        self.num_agents = self.config.get("num_tables")
+        super().__init__(config)
 
-        self.num_actions = config.get("actions")
+        self.num_agents = self.config.get("num_tables")
         self.action_space = spaces.Discrete(self.num_actions)
         self.observation_space = gym.spaces.Box(
-            low=config.get("low"),
-            high=config.get("high"),
-            shape=(config.get("observations"),),
+            low=self.config.get("low"),
+            high=self.config.get("high"),
+            shape=(self.config.get("observations"),),
             dtype=np.float32
         )
 
@@ -237,9 +235,10 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv):
         elif mode == 'human':
             return print_factory(self.factory)
         else:
-            super(MultiAgentFactoryEnv, self).render(mode=mode)
+            super(self.__class__, self).render(mode=mode)
 
     def reset(self):
+        self.tracker.reset()
         if self.config.get("random_init"):
             self.factory = get_factory_from_config(self.config)
         else:

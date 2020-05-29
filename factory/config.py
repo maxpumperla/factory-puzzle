@@ -4,7 +4,7 @@ from typing import Dict
 
 SIMULATION_CONFIG = {
     "layout": "small",
-    "num_tables": 2,
+    "num_tables": 1,
     "num_cores": 1,
     "num_phases": 2,
     # "seed": 1337,
