@@ -3,6 +3,49 @@ from factory.simulation import Factory
 import numpy as np
 from typing import List
 
+__all__ = ["get_observations", "get_reward", "get_done"]
+
+
+def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
+    """Get observation of one agent given the current factory state.
+    """
+    return get_neighbour_observations(agent_id, factory)
+
+
+def get_done(agent_id: int, factory: Factory) -> bool:
+    """We're done with the table if it doesn't have a core anymore or we're out of moves.
+    """
+    if factory.step_count > factory.max_num_steps:
+        return True
+    agent: Table = factory.tables[agent_id]
+    return not agent.has_core()
+
+
+def get_reward(agent_id: int, factory: Factory) -> float:
+    """Get the reward for a single agent in its current state.
+    """
+    moves = factory.moves
+    max_num_steps = factory.max_num_steps
+    steps = factory.step_count
+
+    agent: Table = factory.tables[agent_id]
+    reward = 0.0
+
+    # sum negative rewards due to collisions and illegal moves
+    reward += sum(m.reward() / 1. for m in moves.get(agent_id))
+
+    # high incentive for reaching a target
+    time_taken = max(0, (max_num_steps - steps) / float(max_num_steps))
+    if agent.is_at_target:
+        reward += 30.0 * (1 - time_taken)
+
+    # If an agent without core is close to one with core, let it shy away
+    if not agent.has_core():
+        reward -= has_core_neighbour(agent.node, factory)
+
+    return reward
+
+
 
 def one_hot_encode(total: int, positions: List[int]):
     lst = [0 for _ in range(total)]
@@ -83,4 +126,9 @@ def get_neighbour_observations(agent_id: int, factory: Factory) -> np.ndarray:
     else:
         obs += [-1, -1]
 
-    return np.asarray(obs)
+    # Position of all other cores one-hot encoded(#Nodes = 13 for small, 33 for large)
+    num_nodes = len(factory.nodes)
+    all_table_indices = [factory.nodes.index(t.node) for t in factory.tables]
+    obs += one_hot_encode(num_nodes, all_table_indices)
+
+    return np.asarray(obs)  # 27 small, 47 for large factory

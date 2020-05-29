@@ -12,9 +12,9 @@ from typing import Union
 ray.shutdown()
 ray.init(
     log_to_driver=True,
-    memory=12000 * 1024 * 1024,
-    object_store_memory=10000 * 1024 * 1024,
-    driver_object_store_memory=2000 * 1024 * 1024
+    memory= 12000 * 1024 * 1024,
+    object_store_memory= 10000 * 1024 * 1024,
+    driver_object_store_memory= 2000 * 1024 * 1024
 )
 
 
@@ -57,7 +57,7 @@ def run_config(env: Union[ray.rllib.BaseEnv, gym.Env],
         'run_or_experiment': algorithm,
         'scheduler': scheduler,
         'num_samples': 4,
-        'stop': Stopper().stop,
+        # 'stop': Stopper().stop,
         'config': {
             'env': env,
             'num_gpus': 0,

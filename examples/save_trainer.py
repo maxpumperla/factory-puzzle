@@ -1,4 +1,4 @@
-from factory.environments import FactoryEnv, RoundRobinFactoryEnv, MultiAgentFactoryEnv
+from factory.environments import *
 from factory.config import SIMULATION_CONFIG
 
 import ray
@@ -17,9 +17,9 @@ config["eager"] = False
 register_env("factory", lambda _: FactoryEnv())
 trainer = dqn.DQNTrainer(config=config, env="factory")
 
-for i in range(100):
+for i in range(1000):
     result = trainer.train()
     print(pretty_print(result))
-    if i % 10 == 0:
+    if i % 50 == 0:
         checkpoint = trainer.save()
         print("checkpoint saved at", checkpoint)

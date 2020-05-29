@@ -1,6 +1,6 @@
 from ray.tune import run
 from factory.util.rl import run_config
-from factory.environments import MultiAgentFactoryEnv
+from factory.environments import *
 from ray.tune.registry import register_env
 
 

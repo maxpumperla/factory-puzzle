@@ -3,3 +3,4 @@ streamlit
 opencv-python
 ray[rllib]
 gym
+gputil

@@ -1,11 +1,9 @@
 """In which environment are things happening? (where)
 The environment specifies what agents can observe and how
 they are rewarded for actions."""
-from factory.models import Table
-from factory.simulation import Factory
 from factory.controls import Action, do_action
 from factory.util import print_factory, factory_string
-from factory.util.features import has_core_neighbour, get_neighbour_observations, get_one_hot_observations
+from factory.features import *
 from factory.config import SIMULATION_CONFIG, factory_from_config
 
 from copy import deepcopy
@@ -16,45 +14,7 @@ from ray import rllib
 import numpy as np
 from typing import Dict
 
-
-def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
-    """Get observation of one agent given the current factory state.
-    """
-    return get_one_hot_observations(agent_id, factory)
-
-
-def get_reward(agent_id: int, factory: Factory) -> float:
-    """Get the reward for a single agent in its current state.
-    """
-    moves = factory.moves
-    max_num_steps = factory.max_num_steps
-    steps = factory.step_count
-
-    agent: Table = factory.tables[agent_id]
-    reward = 0.0
-
-    # sum negative rewards due to collisions and illegal moves
-    reward += sum(m.reward() / 100. for m in moves.get(agent_id))
-
-    # high incentive for reaching a target
-    time_taken = max(0, (max_num_steps - steps) / float(max_num_steps))
-    if agent.is_at_target:
-        reward += 30.0 * (1 - time_taken)
-
-    # If an agent without core is close to one with core, let it shy away
-    if not agent.has_core():
-        reward -= has_core_neighbour(agent.node, factory)
-
-    return reward
-
-
-def get_done(agent_id: int, factory: Factory) -> bool:
-    """We're done with the table if it doesn't have a core anymore or we're out of moves.
-    """
-    if factory.step_count > factory.max_num_steps:
-        return True
-    agent: Table = factory.tables[agent_id]
-    return not agent.has_core()
+__all__ = ["FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"]
 
 
 class FactoryEnv(gym.Env):
@@ -69,14 +29,14 @@ class FactoryEnv(gym.Env):
         self.factory = factory_from_config(config)
         self.initial_factory = deepcopy(self.factory)
         self.num_agents = self.config.get("num_tables")
-        self.num_actions = config.get("actions")
+        self.num_actions = self.config.get("actions")
 
         self.current_agent = 0
         self.action_space = spaces.Discrete(self.num_actions)
         self.observation_space = gym.spaces.Box(
-            low=config.get("low"),
-            high=config.get("high"),
-            shape=(config.get("observations"),),
+            low=self.config.get("low"),
+            high=self.config.get("high"),
+            shape=(self.config.get("observations"),),
             dtype=np.float32
         )
 
@@ -90,6 +50,7 @@ class FactoryEnv(gym.Env):
         observations: np.ndarray = get_observations(self.current_agent, self.factory)
         rewards = get_reward(self.current_agent, self.factory)
         done = get_done(self.current_agent, self.factory)
+        assert observations.shape == self.observation_space.shape
         return observations, rewards, done, {}
 
     def step(self, action):
@@ -145,7 +106,7 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
             action_id = action.get(current_agent)
             assert action_id is not None
             action_result = do_action(tables[current_agent], self.factory, Action(action_id))
-            self.tracker.add_move(current_agent, action_result)
+            self.factory.add_move(current_agent, action_result)
 
         observations = {i: get_observations(i, self.factory) for i in keys}
         rewards = {i: get_reward(i, self.factory) for i in keys}
@@ -164,7 +125,6 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
             super(self.__class__, self).render(mode=mode)
 
     def reset(self):
-        self.tracker.reset()
         if self.config.get("random_init"):
             self.factory = factory_from_config(self.config)
         else:
