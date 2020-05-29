@@ -4,7 +4,8 @@ import enum
 from typing import Optional, Tuple, TypeVar, List, Dict
 
 
-__all__ = ["Direction", "Node", "Rail", "Table", "Phase", "Core", "Factory"]
+
+__all__ = ["Direction", "Node", "Rail", "Table", "Phase", "Core", "ActionResult"]
 N = TypeVar('N', bound='Node')
 
 
@@ -162,27 +163,12 @@ class Core:
         self.current_target = self.cycle[self.current_phase] if not self.done() else None
 
 
-class Factory:
-    """A Factory sets up all components (nodes, rails, tables) needed to
-    solve the problem of delivering cores to their destinations. Note that
-    this is just a "model", the application logic and agent interaction is
-    separated  """
-    def __init__(self, nodes: List[Node], rails: List[Rail], 
-                 tables: List[Table], name: str = None):
-        self.nodes = nodes
-        self.rails = rails
-        self.tables = tables
-        self.name = name
-        self.cores = [t.core for t in self.tables if t.has_core()]
+class ActionResult(enum.IntEnum):
+    """Result of an action with attached rewards."""
+    NONE = 0,
+    MOVED = 1,
+    INVALID = 2
+    COLLISION = 3
 
-    def done(self):
-        return all([c.done() for c in self.cores])
-
-    def set_tables(self, tables: List[Table]):
-        self.tables = tables
-
-    def get_rail(self, node: Node) -> Optional[Rail]:
-        for rail in self.rails:
-            if node in rail.nodes:
-                return rail
-        return None
+    def reward(self):
+        return 0 if self.value < 2 else -1

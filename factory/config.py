@@ -1,6 +1,5 @@
-from .models import Factory
 from .util.samples import get_default_factory, get_small_default_factory
-from typing import Dict
+
 
 SIMULATION_CONFIG = {
     "layout": "small",
@@ -17,7 +16,7 @@ SIMULATION_CONFIG = {
 }
 
 
-def get_factory_from_config(config: Dict = None) -> Factory:
+def factory_from_config(config):
     if config is None:
         config = SIMULATION_CONFIG
     if config.get("layout") == "small":

@@ -1,8 +1,10 @@
-from factory.models import Node, Direction, Rail, Factory, Table, Core, Phase
+from factory.models import Node, Direction, Rail, Table, Core, Phase
+from factory.simulation import Factory
 import random
 
 
-def get_default_factory(random_seed=None, num_tables=8, num_cores=3, num_phases=1, **kwargs) -> Factory:
+def get_default_factory(random_seed=None, num_tables=8, num_cores=3, num_phases=1,
+                        max_num_steps=1000, **kwargs) -> Factory:
     """
                     19--01
                         |
@@ -109,10 +111,11 @@ def get_default_factory(random_seed=None, num_tables=8, num_cores=3, num_phases=
 
     tables = create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases)
 
-    return Factory(nodes, rails, tables, "DefaultFactory")
+    return Factory(nodes, rails, tables, max_num_steps, "DefaultFactory")
 
 
-def get_small_default_factory(random_seed=None, num_tables=4, num_cores=2, num_phases=1, **kwargs) -> Factory:
+def get_small_default_factory(random_seed=None, num_tables=4, num_cores=2, num_phases=1,
+                              max_num_steps=1000, **kwargs) -> Factory:
     """
     1--2-----2--3
     |           |
@@ -165,7 +168,7 @@ def get_small_default_factory(random_seed=None, num_tables=4, num_cores=2, num_p
 
     tables = create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases)
 
-    return Factory(nodes, rails, tables, "SmallDefaultFactory")
+    return Factory(nodes, rails, tables, max_num_steps, "SmallDefaultFactory")
 
 
 def create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases):

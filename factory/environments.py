@@ -1,10 +1,11 @@
 """In which environment are things happening? (where)
 The environment specifies what agents can observe and how
 they are rewarded for actions."""
-from factory.models import Factory, Table, Direction, Node
-from factory.controls import Action, ActionResult, do_action
+from factory.models import Table, Direction, Node
+from factory.simulation import Factory
+from factory.controls import Action, do_action
 from factory.util import print_factory, factory_string
-from factory.config import SIMULATION_CONFIG, get_factory_from_config
+from factory.config import SIMULATION_CONFIG, factory_from_config
 
 from copy import deepcopy
 
@@ -12,30 +13,7 @@ import gym
 from gym import spaces
 from ray import rllib
 import numpy as np
-from typing import List, Dict
-
-
-class StatisticsTracker:
-
-    def __init__(self, factory: Factory, max_num_steps):
-        self.max_num_steps = max_num_steps
-        self.factory = factory
-        self.step_count = 0
-        self.moves: Dict[int, List[ActionResult]] = {t: [] for t in range(len(self.factory.tables))}
-
-    def add_move(self, agent_id: int, move: ActionResult):
-        self.moves.get(agent_id).append(move)
-        self.step_count += 1
-
-    def reset(self):
-        self.step_count = 0
-        self.moves = {t: [] for t in range(len(self.factory.tables))}
-
-    @staticmethod
-    def from_config(config):
-        factory = get_factory_from_config(config)
-        max_num_steps = config.get("max_num_steps")
-        return StatisticsTracker(factory, max_num_steps)
+from typing import Dict
 
 
 def check_neighbour(node: Node, direction: Direction, factory: Factory):
@@ -93,12 +71,12 @@ def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
     return np.asarray(obs)
 
 
-def get_reward(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> float:
+def get_reward(agent_id: int, factory: Factory) -> float:
     """Get the reward for a single agent in its current state.
     """
-    moves = tracker.moves
-    max_num_steps = tracker.max_num_steps
-    steps = tracker.step_count
+    moves = factory.moves
+    max_num_steps = factory.max_num_steps
+    steps = factory.step_count
 
     agent: Table = factory.tables[agent_id]
     reward = 0.0
@@ -118,10 +96,10 @@ def get_reward(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> f
     return reward
 
 
-def get_done(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> bool:
+def get_done(agent_id: int, factory: Factory) -> bool:
     """We're done with the table if it doesn't have a core anymore or we're out of moves.
     """
-    if tracker.step_count > tracker.max_num_steps:
+    if factory.step_count > factory.max_num_steps:
         return True
     agent: Table = factory.tables[agent_id]
     return not agent.has_core()
@@ -136,8 +114,7 @@ class FactoryEnv(gym.Env):
         if config is None:
             config = SIMULATION_CONFIG
         self.config = config
-        self.tracker = StatisticsTracker.from_config(self.config)
-        self.factory = self.tracker.factory
+        self.factory = factory_from_config(config)
         self.initial_factory = deepcopy(self.factory)
         self.num_agents = self.config.get("num_tables")
         self.num_actions = config.get("actions")
@@ -156,11 +133,11 @@ class FactoryEnv(gym.Env):
 
         table = self.factory.tables[self.current_agent]
         action_result = do_action(table, self.factory, Action(action))
-        self.tracker.add_move(self.current_agent, action_result)
+        self.factory.add_move(self.current_agent, action_result)
 
         observations: np.ndarray = get_observations(self.current_agent, self.factory)
-        rewards = get_reward(self.current_agent, self.factory, self.tracker)
-        done = get_done(self.current_agent, self.factory, self.tracker)
+        rewards = get_reward(self.current_agent, self.factory)
+        done = get_done(self.current_agent, self.factory)
         return observations, rewards, done, {}
 
     def step(self, action):
@@ -175,9 +152,8 @@ class FactoryEnv(gym.Env):
             super(self.__class__, self).render(mode=mode)
 
     def reset(self):
-        self.tracker.reset()
         if self.config.get("random_init"):
-            self.factory = get_factory_from_config(self.config)
+            self.factory = factory_from_config(self.config)
         else:
             self.factory = deepcopy(self.initial_factory)
         return get_observations(self.current_agent, self.factory)
@@ -220,8 +196,8 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
             self.tracker.add_move(current_agent, action_result)
 
         observations = {i: get_observations(i, self.factory) for i in keys}
-        rewards = {i: get_reward(i, self.factory, self.tracker) for i in keys}
-        dones = {i: get_done(i, self.factory, self.tracker) for i in keys}
+        rewards = {i: get_reward(i, self.factory) for i in keys}
+        dones = {i: get_done(i, self.factory) for i in keys}
         all_done = all(v for k, v in dones.items())
         dones['__all__'] = all_done
 
@@ -238,7 +214,7 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
     def reset(self):
         self.tracker.reset()
         if self.config.get("random_init"):
-            self.factory = get_factory_from_config(self.config)
+            self.factory = factory_from_config(self.config)
         else:
             self.factory = deepcopy(self.initial_factory)
         return {i: get_observations(i, self.factory) for i in range(self.num_agents)}

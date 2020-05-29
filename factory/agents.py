@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 import os
 import pickle
 import numpy as np
-from factory.models import Factory, Table
+from factory.models import Table
+from factory.simulation import Factory
 from factory.controls import Action, ActionResult, BaseTableController, TableAndRailController
 
 

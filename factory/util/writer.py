@@ -1,4 +1,5 @@
-from ..models import Factory, Node, Direction
+from factory.models import Node
+from factory.simulation import Factory
 import cv2
 import numpy as np
 SCALE_X, SCALE_Y = 4, 2

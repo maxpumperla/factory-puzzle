@@ -1,6 +1,6 @@
 import pytest
-from factory.models import Direction, Node, Rail
-from factory.models import Table, Factory, Core, Phase
+from factory.models import Direction, Node, Rail, Table, Core, Phase
+from factory.simulation import Factory
 
 
 def test_directions():

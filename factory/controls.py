@@ -2,7 +2,8 @@
 import enum
 import random
 
-from .models import Table, Direction, Factory, Node, Rail
+from .models import Table, Direction, Node, Rail, ActionResult
+from .simulation import Factory
 
 
 class Action(enum.IntEnum):
@@ -16,17 +17,6 @@ class Action(enum.IntEnum):
     @staticmethod
     def random_action():
         return Action(random.randrange(0, 5))
-
-
-class ActionResult(enum.IntEnum):
-    """Result of an action with attached rewards."""
-    NONE = 0,
-    MOVED = 1,
-    INVALID = 2
-    COLLISION = 3
-
-    def reward(self):
-        return 0 if self.value < 2 else -1
 
 
 def do_action(table: Table, factory: Factory, action: Action):

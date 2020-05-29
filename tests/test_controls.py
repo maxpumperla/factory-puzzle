@@ -1,4 +1,5 @@
-from factory.models import Factory, Rail, Node, Table, Core, Direction, Phase
+from factory.models import Rail, Node, Table, Core, Direction, Phase
+from factory.simulation import Factory
 from factory.controls import TableAndRailController, Action, ActionResult
 
 
