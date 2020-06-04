@@ -15,7 +15,8 @@
 |      small|          1|          1|          1|     yes|
 |      small|          1|          1|          3|     yes|
 |      small|          3|          1|          1|     yes|
-|      small|          3|          3|          1|     no|
+|      small|          3|          2|          1|     yes|
+|      large|          1|          1|          1|     no|
 |      large|          3|          3|          1|     no|
 |      large|         10|          5|          1|     no|
 |      large|         12|         10|          3|     no|
