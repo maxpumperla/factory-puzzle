@@ -57,7 +57,7 @@ def run_config(env: Union[ray.rllib.BaseEnv, gym.Env],
         'run_or_experiment': algorithm,
         'scheduler': scheduler,
         'num_samples': 4,
-        # 'stop': Stopper().stop,
+        'stop': Stopper().stop,
         'config': {
             'env': env,
             'num_gpus': 0,
@@ -134,22 +134,22 @@ class Stopper:
 
         # Up until early stopping filter, append value loss list to measure range
         if result['training_iteration'] <= 50:
-            self.vf_loss_window.append(result['info/learner/default_policy/vf_loss'])
+            self.vf_loss_window.append(result.get("info").get("learner").get("default_policy").get("vf_loss"))
 
         # Experimental Criteria
 
         # Episode steps filter
         if result['training_iteration'] == 1:
-            self.entropy_start = result['info/learner/default_policy/entropy']  # Set start value
+            self.entropy_start = result.get("info").get("learner").get("default_policy").get("entropy") # Set start value
             # Too many steps within episode
-            self.too_many_steps = result['timesteps_this_iter'] > 200000  # Max steps
+            self.too_many_steps = result['timesteps_total'] > 200000  # Max steps
             if not self.should_stop and self.too_many_steps:
                 self.should_stop = True
                 return self.should_stop
 
         # Early stopping filter
         if result['training_iteration'] == 50:
-            self.entropy_now = result['info/learner/default_policy/entropy']
+            self.entropy_now = result.get("info").get("learner").get("default_policy").get("entropy")
             self.episode_reward_range = np.max(np.array(self.episode_reward_window)) - np.min(
                 np.array(self.episode_reward_window))
             self.entropy_slope = self.entropy_now - self.entropy_start

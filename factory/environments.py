@@ -2,6 +2,7 @@
 The environment specifies what agents can observe and how
 they are rewarded for actions."""
 from factory.controls import Action, do_action
+from factory.models import Direction
 from factory.util import print_factory, factory_string
 from factory.features import *
 from factory.config import SIMULATION_CONFIG, factory_from_config
@@ -33,12 +34,43 @@ class FactoryEnv(gym.Env):
 
         self.current_agent = 0
         self.action_space = spaces.Discrete(self.num_actions)
-        self.observation_space = gym.spaces.Box(
+        self.observation_space = spaces.Box(
             low=self.config.get("low"),
             high=self.config.get("high"),
             shape=(self.config.get("observations"),),
             dtype=np.float32
         )
+
+        # Action masking
+        self.masking = self.config.get("masking")
+        self.action_mask = None
+        if self.masking:
+            observations = self.observation_space
+            self.observation_space = spaces.Dict({
+                "action_mask": spaces.Box(0, 1, shape=(self.num_actions,)),
+                "observations": observations
+            })
+
+    def update_action_mask(self):
+        agent_node = self.factory.tables[self.current_agent].node
+
+        self.action_mask = np.array([
+            agent_node.has_neighbour(Direction.up),
+            agent_node.has_neighbour(Direction.right),
+            agent_node.has_neighbour(Direction.down),
+            agent_node.has_neighbour(Direction.left),
+            0.0,
+        ])
+
+    def add_masking_to_obs(self, observations):
+        """Add masking, if configured, otherwise return observations as they were."""
+        if self.masking:
+            self.update_action_mask()
+            observations = {
+                "action_mask": self.action_mask,
+                "observations": observations,
+            }
+        return observations
 
     def _step(self, action):
         assert action in range(self.num_actions)
@@ -50,7 +82,9 @@ class FactoryEnv(gym.Env):
         observations: np.ndarray = get_observations(self.current_agent, self.factory)
         rewards = get_reward(self.current_agent, self.factory)
         done = get_done(self.current_agent, self.factory)
-        assert observations.shape == self.observation_space.shape
+
+        observations = self.add_masking_to_obs(observations)
+
         return observations, rewards, done, {}
 
     def step(self, action):
@@ -69,14 +103,15 @@ class FactoryEnv(gym.Env):
             self.factory = factory_from_config(self.config)
         else:
             self.factory = deepcopy(self.initial_factory)
-        return get_observations(self.current_agent, self.factory)
+        observations = get_observations(self.current_agent, self.factory)
+        observations = self.add_masking_to_obs(observations)
+        return observations
 
 
 class RoundRobinFactoryEnv(FactoryEnv):
 
     def __init__(self, config=None):
         super().__init__(config)
-        self.current_agent = 0
 
     def step(self, action):
         result = self._step(action)
@@ -92,7 +127,7 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
 
         self.num_agents = self.config.get("num_tables")
         self.action_space = spaces.Discrete(self.num_actions)
-        self.observation_space = gym.spaces.Box(
+        self.observation_space = spaces.Box(
             low=self.config.get("low"),
             high=self.config.get("high"),
             shape=(self.config.get("observations"),),

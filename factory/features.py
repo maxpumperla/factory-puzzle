@@ -32,7 +32,7 @@ def get_reward(agent_id: int, factory: Factory) -> float:
     reward = 0.0
 
     # sum negative rewards due to collisions and illegal moves
-    reward += sum(m.reward() / 1. for m in moves.get(agent_id))
+    reward += sum(m.reward() / 10. for m in moves.get(agent_id))
 
     # high incentive for reaching a target
     time_taken = max(0, (max_num_steps - steps) / float(max_num_steps))
@@ -127,8 +127,8 @@ def get_neighbour_observations(agent_id: int, factory: Factory) -> np.ndarray:
         obs += [-1, -1]
 
     # Position of all other cores one-hot encoded(#Nodes = 13 for small, 33 for large)
-    num_nodes = len(factory.nodes)
-    all_table_indices = [factory.nodes.index(t.node) for t in factory.tables]
-    obs += one_hot_encode(num_nodes, all_table_indices)
+    # num_nodes = len(factory.nodes)
+    # all_table_indices = [factory.nodes.index(t.node) for t in factory.tables]
+    # obs += one_hot_encode(num_nodes, all_table_indices)
 
     return np.asarray(obs)  # 27 small, 47 for large factory
