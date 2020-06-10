@@ -1,34 +1,24 @@
 from factory.environments import *
-from factory.util.wrapper import ActionMaskingTFModel, MASKING_MODEL_NAME
-from factory.config import SIMULATION_CONFIG
+from factory.util.rl import get_config
 
 import ray
-import ray.rllib.agents.dqn as dqn
+import ray.rllib.agents.dqn as algo
+from ray.rllib.agents.dqn import DQNTrainer as Trainer
+
 from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
-from ray.rllib.models import ModelCatalog
+
+ray.init(webui_host='127.0.0.1')
+config = get_config(algo)
+print(pretty_print(config))
 
 
-print(pretty_print(SIMULATION_CONFIG))
-ray.init()
+env_name = "factory"
+register_env(env_name, lambda _: FactoryEnv())
+trainer = Trainer(config=config, env=env_name)
 
-config = dqn.DEFAULT_CONFIG.copy()
-config["num_gpus"] = 0
-config["num_workers"] = 4
-config["eager"] = False
 
-register_env("factory", lambda _: FactoryEnv())
-
-masking = SIMULATION_CONFIG.get("masking")
-if masking:
-    ModelCatalog.register_custom_model(MASKING_MODEL_NAME, ActionMaskingTFModel)
-    config['model'] = {"custom_model": MASKING_MODEL_NAME}
-    config['hiddens'] = []
-    config['dueling'] = False
-
-trainer = dqn.DQNTrainer(config=config, env="factory")
-
-for i in range(1000):
+for i in range(101):
     result = trainer.train()
     print(pretty_print(result))
     if i % 50 == 0:
