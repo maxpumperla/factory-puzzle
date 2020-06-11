@@ -121,6 +121,7 @@ class RoundRobinFactoryEnv(FactoryEnv):
 
 class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
     """Define a ray multi agent env"""
+    # TODO: not ready for masking yet
 
     def __init__(self, config=None):
         super().__init__(config)

@@ -19,14 +19,14 @@ class ActionMaskingTFModel(DistributionalQTFModel):
                  model_config, name, **kw):
         super().__init__(obs_space, action_space, num_outputs, model_config, name, **kw)
 
-        self.custom_model = FullyConnectedNetwork(
+        self.base_model = FullyConnectedNetwork(
             Box(low, high, shape=(num_obs,)), action_space, num_actions,
             model_config, name)
 
-        self.register_variables(self.custom_model.variables())
+        self.register_variables(self.base_model.variables())
 
     def forward(self, input_dict, state, seq_lens):
-        logits, _ = self.custom_model({
+        logits, _ = self.base_model({
             "obs": input_dict["obs"]["observations"]
         })
         action_mask = input_dict["obs"]["action_mask"]
@@ -34,7 +34,7 @@ class ActionMaskingTFModel(DistributionalQTFModel):
         return logits + inf_mask, state
 
     def value_function(self):
-        return self.custom_model.value_function()
+        return self.base_model.value_function()
 
     def import_from_h5(self, h5_file):
         pass
