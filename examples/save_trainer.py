@@ -1,5 +1,7 @@
+"""Start this script with either "deepkit run" or "python examples/save_trainer.py"
+"""
 from factory.environments import *
-from factory.util.rl import get_config
+from factory.rl import get_config
 
 import ray
 import ray.rllib.agents.dqn as algo

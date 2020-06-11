@@ -42,10 +42,13 @@ config:
   low: -1
   high: 10
   random_init: True
-  masking: False
+  masking: True
   use_dqn: True
   use_offline_data: False
-  num_samples: 2
+  num_samples: 4
+
+  deepkit_logging: True
+  deepkit_account: deepkit # or localhost
 
 
 command: python examples/save_trainer.py

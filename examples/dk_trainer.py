@@ -1,23 +1,23 @@
+"""Start this script with "python examples/dk_trainer.py"
+"""
 from factory.environments import *
-from factory.util.rl import get_config
+from factory.rl import get_config
 
 import ray
 import ray.rllib.agents.dqn as algo
 from ray.rllib.agents.dqn import DQNTrainer as Trainer
-
 from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
+import deepkit
+
 
 ray.init(webui_host='127.0.0.1')
 config = get_config(algo)
 print(pretty_print(config))
 
-import deepkit
 experiment = deepkit.experiment()
 register_env("factory", lambda _: FactoryEnv())
 trainer = Trainer(config=config, env="factory")
-
-experiment.watch_keras_model(trainer.get_policy().model.base_model)
 
 for i in range(2000):
     result = trainer.train()
