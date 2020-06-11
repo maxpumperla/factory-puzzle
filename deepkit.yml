@@ -1,0 +1,54 @@
+image: python:3.7
+
+build:
+  - ADD requirements.txt
+  - pip install -r requirements.txt
+  - ADD factory/
+  - ADD setup.py
+  - python setup.py install
+
+#env:
+#  - PYTHONPATH=/job
+
+output:
+  - DQN
+  - PPO
+
+ignore:
+  - DQN
+  - PPO
+  - models
+  - tests
+  - assets
+  - venv
+  - .pytest_cache
+
+title: Factory solver
+list: test-experiment
+labels:
+  - rllib
+  - tensorflow
+
+config:
+  env_name: factory
+  layout: small
+  num_tables: 3
+  num_cores: 2
+  num_phases: 1
+  # seed: 1337
+  max_num_steps: 300
+  actions: 5
+  observations: 14 #27
+  low: -1
+  high: 10
+  random_init: True
+  masking: True
+  use_dqn: True
+  use_offline_data: False
+  num_samples: 4
+
+  deepkit_logging: True
+  deepkit_account: deepkit # or localhost
+
+
+command: python examples/save_trainer.py

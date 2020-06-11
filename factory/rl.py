@@ -1,22 +1,13 @@
-import ray
 from ray.rllib import models
-import gym
 from ray import tune
 from ray.tune import schedulers
 import os
 import random
 import numpy as np
-from typing import Union
-
-# we initialize ray, once this module gets imported for the first time.
-ray.shutdown()
-ray.init(
-    log_to_driver=True,
-    memory= 12000 * 1024 * 1024,
-    object_store_memory= 10000 * 1024 * 1024,
-    driver_object_store_memory= 2000 * 1024 * 1024
-)
-
+from ray.tune.logger import DEFAULT_LOGGERS
+from factory.config import SIMULATION_CONFIG
+from copy import deepcopy
+from factory.util.logger import DeepKitLogger
 
 HYPER_PARAM_MUTATIONS = {
     'lambda': np.linspace(0.9, 1.0, 5).tolist(),
@@ -27,6 +18,19 @@ HYPER_PARAM_MUTATIONS = {
     'sgd_minibatch_size': [128, 256, 512, 1024, 2048],
     'train_batch_size': [4000, 6000, 8000, 10000, 12000]
 }
+
+
+def get_config(algo):
+    result = algo.DEFAULT_CONFIG.copy()
+    result["num_gpus"] = 0
+    result["num_workers"] = 4
+    result["eager"] = False
+    result['train_batch_size'] = 8000
+    result['batch_mode'] = 'complete_episodes'
+
+    result = apply_all_configs(result)
+
+    return result
 
 
 def default_scheduler():
@@ -44,34 +48,30 @@ def default_scheduler():
 
 def default_model():
     model = models.MODEL_DEFAULTS.copy()
-    model['fcnet_hiddens'] = [256, 256]
+    model['fcnet_hiddens'] = [512, 512]  # 256, 256
     return model
 
 
-def run_config(env: Union[ray.rllib.BaseEnv, gym.Env],
-               algorithm='PPO',
-               local_dir=os.path.expanduser("."),
-               scheduler=default_scheduler(),
-               model=default_model()):
-    return {
+def get_tune_run_config(algorithm=None,
+                        local_dir=os.path.expanduser("."),
+                        scheduler=default_scheduler(),
+                        model=default_model()):
+    if not algorithm:
+        from ray.rllib.agents.dqn import DQNTrainer
+        from ray.rllib.agents.ppo import PPOTrainer
+        algorithm = DQNTrainer if SIMULATION_CONFIG.get("use_dqn") else PPOTrainer
+
+    base_config = {
         'run_or_experiment': algorithm,
         'scheduler': scheduler,
-        'num_samples': 4,
+        'num_samples': SIMULATION_CONFIG.get("num_samples"),
         'stop': Stopper().stop,
         'config': {
-            'env': env,
+            'env': SIMULATION_CONFIG.get("env_name"),
             'num_gpus': 0,
             'num_workers': 1,
             'model': model,
-            'use_gae': True,
-            'vf_loss_coeff': 1.0,
-            'vf_clip_param': np.inf,
-            'lambda': 0.95,
-            'clip_param': 0.2,
             'lr': 1e-4,
-            'entropy_coeff': 0.0,
-            'num_sgd_iter': tune.sample_from(lambda spec: random.choice([10, 20, 30])),
-            'sgd_minibatch_size': tune.sample_from(lambda spec: random.choice([128, 512, 2048])),
             'train_batch_size': tune.sample_from(lambda spec: random.choice([4000, 8000, 12000])),
             'batch_mode': 'complete_episodes',
         },
@@ -82,6 +82,74 @@ def run_config(env: Union[ray.rllib.BaseEnv, gym.Env],
         'max_failures': 1,
         'export_formats': ['model']
     }
+    if algorithm == 'PPO':
+        base_config.get('config').update({
+            'use_gae': True,
+            'vf_loss_coeff': 1.0,
+            'vf_clip_param': np.inf,
+            'lambda': 0.95,
+            'clip_param': 0.2,
+            'entropy_coeff': 0.0,
+            'num_sgd_iter': tune.sample_from(lambda spec: random.choice([10, 20, 30])),
+            'sgd_minibatch_size': tune.sample_from(lambda spec: random.choice([128, 512, 2048])),
+        })
+
+    base_config["config"] = apply_all_configs(base_config.get("config"))
+
+    # Set deepkit logger for distributed experiments
+    base_config = apply_logger(base_config)
+
+    return base_config
+
+
+def apply_all_configs(config):
+    config = apply_offline_data(config)
+    config = apply_masking_model(config)
+    return config
+
+
+def apply_logger(config):
+    config = deepcopy(config)
+    deepkit_logging = SIMULATION_CONFIG.get("deepkit_logging")
+    print("deepkit logging")
+    if deepkit_logging:
+        config['loggers'] = list(DEFAULT_LOGGERS) + [DeepKitLogger]
+    return config
+
+
+def apply_masking_model(config):
+    config = deepcopy(config)
+    masking = SIMULATION_CONFIG.get("masking")
+    if masking:
+        from ray.rllib.models import ModelCatalog
+        from factory.util.wrapper import ActionMaskingTFModel, MASKING_MODEL_NAME
+        ModelCatalog.register_custom_model(MASKING_MODEL_NAME, ActionMaskingTFModel)
+        config['model'] = {"custom_model": MASKING_MODEL_NAME}
+        if SIMULATION_CONFIG.get("use_dqn"):
+            config['hiddens'] = []
+            config['dueling'] = False
+    return config
+
+
+def apply_offline_data(config):
+    config = deepcopy(config)
+    if SIMULATION_CONFIG.get("use_offline_data"):
+        # TODO: currently only works for DQN without masking. With masking we get
+        #   ray/rllib/optimizers/replay_buffer.py", line 265, in update_priorities
+        #     assert priority > 0
+        #   For PPO this will fail either way with missing "advantages" key.
+        #   TL;DR: generating offline data from agents seems fine, manually creating it is very difficult.
+        config['input'] = "factory-offline-data"
+        # NOTE: this is how you'd roll-out 50% data from offline experience, 50% as usual
+        #     {
+        #     "factory-offline-data": 0.5,
+        #     "sampler": 0.5,
+        # }
+        config["input_evaluation"] = []
+        config['explore'] = False
+        config['postprocess_inputs'] = True
+
+    return config
 
 
 class Stopper:
@@ -120,7 +188,7 @@ class Stopper:
         self.entropy_slope_threshold = 0.01  # Remove with -9999999
         self.vf_loss_range_threshold = 0.1  # Remove with 0
 
-    def stop(self, trial_id, result):
+    def stop(self, _, result):
         # Core Criteria
         self.too_many_iter = result['training_iteration'] >= 250
         self.too_much_time = result['time_total_s'] >= 43200

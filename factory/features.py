@@ -24,7 +24,6 @@ def get_done(agent_id: int, factory: Factory) -> bool:
 def get_reward(agent_id: int, factory: Factory) -> float:
     """Get the reward for a single agent in its current state.
     """
-    moves = factory.moves
     max_num_steps = factory.max_num_steps
     steps = factory.step_count
 
@@ -32,16 +31,18 @@ def get_reward(agent_id: int, factory: Factory) -> float:
     reward = 0.0
 
     # sum negative rewards due to collisions and illegal moves
-    reward += sum(m.reward() / 10. for m in moves.get(agent_id))
+    if factory.moves.get(agent_id):
+        move = factory.moves[agent_id].pop(-1)
+        reward += move.reward() / 10.
 
     # high incentive for reaching a target
     time_taken = max(0, (max_num_steps - steps) / float(max_num_steps))
     if agent.is_at_target:
-        reward += 30.0 * (1 - time_taken)
+        reward += 30.0 * max(0, (1 - time_taken))
 
     # If an agent without core is close to one with core, let it shy away
     if not agent.has_core():
-        reward -= has_core_neighbour(agent.node, factory)
+        reward -= has_core_neighbour(agent.node, factory) / 10.
 
     return reward
 

@@ -15,10 +15,8 @@ def run(checkpoint, cls, steps=1000, out=None, config_args={}):
     config = {}
     # Load configuration from checkpoint file.
     config_dir = os.path.dirname(checkpoint)
-    config_path = os.path.join(config_dir, "params.pkl")
-    # Try parent directory.
-    if not os.path.exists(config_path):
-        config_path = os.path.join(config_dir, "../params.pkl")
+    config_path = os.path.abspath(os.path.join(config_dir, "../params.pkl"))
+    print(config_path)
 
     # If no pkl file found, require command line `--config`.
     if not os.path.exists(config_path):
