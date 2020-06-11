@@ -1,15 +1,13 @@
-import ray
 from ray.rllib import models
-import gym
 from ray import tune
 from ray.tune import schedulers
 import os
 import random
 import numpy as np
-from typing import Union
+from ray.tune.logger import DEFAULT_LOGGERS
 from factory.config import SIMULATION_CONFIG
 from copy import deepcopy
-
+from .logger import DeepKitLogger
 
 HYPER_PARAM_MUTATIONS = {
     'lambda': np.linspace(0.9, 1.0, 5).tolist(),
@@ -32,7 +30,17 @@ def get_config(algo):
 
     result = apply_offline_data(result)
     result = apply_masking_model(result)
+    result = apply_logger(result)
+
     return result
+
+
+def apply_logger(config):
+    config = deepcopy(config)
+    deepkit_logging = SIMULATION_CONFIG.get("deepkit_logging")
+    if deepkit_logging:
+        config['loggers'] = list(DEFAULT_LOGGERS) + [DeepKitLogger]
+    return config
 
 
 def default_scheduler():
@@ -123,6 +131,7 @@ def apply_offline_data(config):
         #   For PPO this will fail either way with missing "advantages" key.
         #   TL;DR: generating offline data from agents seems fine, manually creating it is very difficult.
         config['input'] = "factory-offline-data"
+        # NOTE: this is how you'd roll-out 50% data from offline experience, 50% as usual
         #     {
         #     "factory-offline-data": 0.5,
         #     "sampler": 0.5,
