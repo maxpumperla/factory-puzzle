@@ -7,7 +7,7 @@ import numpy as np
 from ray.tune.logger import DEFAULT_LOGGERS
 from factory.config import SIMULATION_CONFIG
 from copy import deepcopy
-from .logger import DeepKitLogger
+from factory.util.logger import DeepKitLogger
 
 HYPER_PARAM_MUTATIONS = {
     'lambda': np.linspace(0.9, 1.0, 5).tolist(),
@@ -28,19 +28,9 @@ def get_config(algo):
     result['train_batch_size'] = 8000
     result['batch_mode'] = 'complete_episodes'
 
-    result = apply_offline_data(result)
-    result = apply_masking_model(result)
-    result = apply_logger(result)
+    result = apply_all_configs(result)
 
     return result
-
-
-def apply_logger(config):
-    config = deepcopy(config)
-    deepkit_logging = SIMULATION_CONFIG.get("deepkit_logging")
-    if deepkit_logging:
-        config['loggers'] = list(DEFAULT_LOGGERS) + [DeepKitLogger]
-    return config
 
 
 def default_scheduler():
@@ -62,10 +52,10 @@ def default_model():
     return model
 
 
-def get_run_config(algorithm=None,
-                   local_dir=os.path.expanduser("."),
-                   scheduler=default_scheduler(),
-                   model=default_model()):
+def get_tune_run_config(algorithm=None,
+                        local_dir=os.path.expanduser("."),
+                        scheduler=default_scheduler(),
+                        model=default_model()):
     if not algorithm:
         from ray.rllib.agents.dqn import DQNTrainer
         from ray.rllib.agents.ppo import PPOTrainer
@@ -103,9 +93,28 @@ def get_run_config(algorithm=None,
             'num_sgd_iter': tune.sample_from(lambda spec: random.choice([10, 20, 30])),
             'sgd_minibatch_size': tune.sample_from(lambda spec: random.choice([128, 512, 2048])),
         })
-    base_config["config"] = apply_masking_model(base_config.get("config"))
+
+    base_config["config"] = apply_all_configs(base_config.get("config"))
+
+    # Set deepkit logger for distributed experiments
+    base_config = apply_logger(base_config)
 
     return base_config
+
+
+def apply_all_configs(config):
+    config = apply_offline_data(config)
+    config = apply_masking_model(config)
+    return config
+
+
+def apply_logger(config):
+    config = deepcopy(config)
+    deepkit_logging = SIMULATION_CONFIG.get("deepkit_logging")
+    print("deepkit logging")
+    if deepkit_logging:
+        config['loggers'] = list(DEFAULT_LOGGERS) + [DeepKitLogger]
+    return config
 
 
 def apply_masking_model(config):
