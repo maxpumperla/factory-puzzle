@@ -1,20 +1,16 @@
 from .util.samples import get_default_factory, get_small_default_factory
+import os
+import yaml
 
+dk_file_path = "/job/deepkit.yml"
+if not os.path.exists(dk_file_path):
+    full_dir_name = os.path.dirname(os.path.realpath(__file__))
+    dk_file_path = os.path.join(full_dir_name, "../deepkit.yml")
 
-SIMULATION_CONFIG = {
-    "layout": "small",
-    "num_tables": 1,
-    "num_cores": 1,
-    "num_phases": 1,
-    #"seed": 1337,
-    "max_num_steps": 300,
-    "actions": 5,
-    "observations": 14, #27
-    "low": -1,
-    "high": 10,
-    "random_init": False,
-    "masking": True,
-}
+with open(dk_file_path, "r") as f:
+    dk_config = yaml.safe_load(f.read()).get("config")
+
+SIMULATION_CONFIG = dk_config
 
 
 def factory_from_config(config):
