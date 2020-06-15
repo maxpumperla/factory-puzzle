@@ -23,7 +23,7 @@ for eps_id in range(100):
     done = False
     t = 0
     while not done:
-        # use a heuristic here instead
+        # TODO use a heuristic here instead
         action = env.action_space.sample()
 
         new_obs, rew, done, info = env.step(action)

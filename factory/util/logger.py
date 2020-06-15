@@ -2,7 +2,6 @@ from ray.tune.logger import Logger
 
 
 class DeepKitLogger(Logger):
-    """DeepKit logger."""
 
     def _init(self):
         import deepkit
