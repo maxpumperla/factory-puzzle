@@ -1,5 +1,10 @@
 from typing import Optional, List, Dict
+from collections import Counter
+import pprint
 from .models import *
+
+PRINTER = pprint.PrettyPrinter(indent=4)
+VERBOSE = True
 
 class Factory:
     """A Factory sets up all components (nodes, rails, tables) needed to
@@ -14,8 +19,15 @@ class Factory:
         self.name = name
         self.cores = [t.core for t in self.tables if t.has_core()]
         self.max_num_steps = max_num_steps
+
+        # Stats counter
         self.step_count = 0
+        self.agent_step_counter = Counter()
         self.moves: Dict[int, List[ActionResult]] = {t: [] for t in range(len(self.tables))}
+        self.move_counter = Counter()
+        self.action_counter = Counter()
+        self.step_completion_counter: Dict[int, List[int]] = {t: [] for t in range(len(self.tables))}
+
 
     def done(self):
         return all([c.done() for c in self.cores])
@@ -29,6 +41,28 @@ class Factory:
                 return rail
         return None
 
-    def add_move(self, agent_id: int, move: ActionResult):
-        self.moves.get(agent_id).append(move)
+    def add_move(self, agent_id: int, action, move: ActionResult):
         self.step_count += 1
+        self.moves.get(agent_id).append(move)
+        self.agent_step_counter[agent_id] += 1
+        self.move_counter[move.name]  += 1
+        self.action_counter[action.name] +=1
+
+    def add_completed_step_count(self):
+        for agent_id in range(len(self.tables)):
+            counter = self.step_completion_counter.get(agent_id)
+            counter.append(self.agent_step_counter[agent_id])
+
+    def print_stats(self):
+        if VERBOSE:
+            PRINTER.pprint(">>> Completed an episode")
+            # for core in self.cores:
+            #     PRINTER.pprint(core.table.node.coordinates)
+            # for table in self.tables:
+            #     PRINTER.pprint(table.has_core())
+            PRINTER.pprint("   >>> Move counter")
+            PRINTER.pprint(dict(self.move_counter))
+            PRINTER.pprint("   >>> Action counter")
+            PRINTER.pprint(dict(self.action_counter))
+            PRINTER.pprint("   >>> Steps taken to completion")
+            PRINTER.pprint(self.step_completion_counter)
