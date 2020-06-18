@@ -1,13 +1,17 @@
 from ray.tune.logger import Logger
-
+import copy
 
 class DeepKitLogger(Logger):
-    """DeepKit logger."""
 
     def _init(self):
         import deepkit
         self.experiment = deepkit.experiment(new=True)
-        self.experiment.set_full_config(self.config)
+        # TODO: put observations here as well
+        config = copy.deepcopy(self.config)
+        # Note: this causes deepkit to crash
+        if "vf_clip_param" in config.keys():
+            config.pop("vf_clip_param")
+        self.experiment.set_full_config(config)
 
     def on_result(self, result):
         for key, value in result.items():

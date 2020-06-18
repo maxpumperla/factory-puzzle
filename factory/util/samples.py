@@ -179,13 +179,14 @@ def create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases):
     for idx in range(num_tables):
         tables.append(Table(shuttle_nodes[idx], name=f"table_{idx}"))
 
-    random.shuffle(tables)
+    # random.shuffle(tables)
     # Core targets go on immobile nodes
     fixed_nodes = [n for n in nodes if not n.is_rail]
     for idx in range(num_cores):
         cycle = {}
-        random.shuffle(nodes)
+        # random.shuffle(nodes)
         for p in range(num_phases):
+            # TODO: re-use fixed nodes
             cycle[Phase(p)] = fixed_nodes[p]
         Core(tables[idx], cycle, f"core_{idx}")
     return tables

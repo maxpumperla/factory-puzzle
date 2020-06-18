@@ -11,6 +11,12 @@ with open(dk_file_path, "r") as f:
     dk_config = yaml.safe_load(f.read()).get("config")
 
 SIMULATION_CONFIG = dk_config
+MASK_KEY = "action_mask"
+OBS_KEY = "observations"
+
+
+def get_observation_names():
+    return [k for k, v in SIMULATION_CONFIG.items() if k.startswith('obs_') and v is True]
 
 
 def factory_from_config(config):

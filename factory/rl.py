@@ -8,6 +8,7 @@ from ray.tune.logger import DEFAULT_LOGGERS
 from factory.config import SIMULATION_CONFIG
 from copy import deepcopy
 from factory.util.logger import DeepKitLogger
+from factory.environments import get_action_space, get_observation_space
 
 HYPER_PARAM_MUTATIONS = {
     'lambda': np.linspace(0.9, 1.0, 5).tolist(),
@@ -82,7 +83,7 @@ def get_tune_run_config(algorithm=None,
         'max_failures': 1,
         'export_formats': ['model']
     }
-    if algorithm == 'PPO':
+    if not SIMULATION_CONFIG.get("use_dqn"):
         base_config.get('config').update({
             'use_gae': True,
             'vf_loss_coeff': 1.0,
@@ -103,15 +104,29 @@ def get_tune_run_config(algorithm=None,
 
 
 def apply_all_configs(config):
+    config = apply_multi_policy(config)
     config = apply_offline_data(config)
     config = apply_masking_model(config)
+    return config
+
+
+def apply_multi_policy(config):
+    config = deepcopy(config)
+    multi_policy = SIMULATION_CONFIG.get("multi_policy")
+    if multi_policy:
+        num_agents = SIMULATION_CONFIG.get("num_tables")
+        config["multiagent"] = {
+            "policies": { str(i): (None, get_observation_space(SIMULATION_CONFIG),
+                       get_action_space(SIMULATION_CONFIG), {}) for i in range(num_agents)},
+            "policy_mapping_fn": lambda agent_id: str(agent_id),
+        }
+
     return config
 
 
 def apply_logger(config):
     config = deepcopy(config)
     deepkit_logging = SIMULATION_CONFIG.get("deepkit_logging")
-    print("deepkit logging")
     if deepkit_logging:
         config['loggers'] = list(DEFAULT_LOGGERS) + [DeepKitLogger]
     return config
@@ -122,7 +137,7 @@ def apply_masking_model(config):
     masking = SIMULATION_CONFIG.get("masking")
     if masking:
         from ray.rllib.models import ModelCatalog
-        from factory.util.wrapper import ActionMaskingTFModel, MASKING_MODEL_NAME
+        from factory.util.masking import ActionMaskingTFModel, MASKING_MODEL_NAME
         ModelCatalog.register_custom_model(MASKING_MODEL_NAME, ActionMaskingTFModel)
         config['model'] = {"custom_model": MASKING_MODEL_NAME}
         if SIMULATION_CONFIG.get("use_dqn"):
@@ -220,7 +235,8 @@ class Stopper:
             self.entropy_now = result.get("info").get("learner").get("default_policy").get("entropy")
             self.episode_reward_range = np.max(np.array(self.episode_reward_window)) - np.min(
                 np.array(self.episode_reward_window))
-            self.entropy_slope = self.entropy_now - self.entropy_start
+            if self.entropy_now and self.entropy_start: # TODO: these are sometimes None
+                self.entropy_slope = self.entropy_now - self.entropy_start
             self.vf_loss_range = np.max(np.array(self.vf_loss_window)) - np.min(np.array(self.vf_loss_window))
             if np.abs(self.episode_reward_range) < np.abs(
                     self.episode_reward_window[0] * self.episode_reward_range_threshold):
