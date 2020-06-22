@@ -10,6 +10,7 @@ from copy import deepcopy
 from factory.util.logger import DeepKitLogger
 from factory.environments import get_action_space, get_observation_space
 
+
 HYPER_PARAM_MUTATIONS = {
     'lambda': np.linspace(0.9, 1.0, 5).tolist(),
     'clip_param': np.linspace(0.01, 0.5, 5).tolist(),

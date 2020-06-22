@@ -3,6 +3,8 @@ import copy
 from ..config import SIMULATION_CONFIG
 
 class DeepKitLogger(Logger):
+    """General DeepKit logger. Once the interface is stable and
+    all potential bugs fixed, this should be submitted to Ray."""
 
     def _init(self):
         import deepkit

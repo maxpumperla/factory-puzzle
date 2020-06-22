@@ -22,6 +22,9 @@ num_obs = get_num_obs()
 num_actions = SIMULATION_CONFIG.get("actions")
 
 class ActionMaskingTFModel(DistributionalQTFModel):
+    """Custom TF Model that masks out illegal moves. Works for any
+    RLlib algorithm (tested only on PPO and DQN so far, though).
+    """
 
     def __init__(self,obs_space, action_space, num_outputs,
                  model_config, name, **kw):

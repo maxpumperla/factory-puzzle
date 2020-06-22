@@ -10,6 +10,8 @@ __all__ = ["get_observations", "get_reward", "get_done"]
 
 def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
     """Get observation of one agent given the current factory state.
+    We first determine the observations selected in the config file and
+    then concatenate the results of the corresponding observation functions.
     """
     obs_names = get_observation_names()
     obs_dict = {obs: getattr(importlib.import_module('factory.features'), obs)(agent_id, factory)
@@ -23,6 +25,7 @@ def get_done(agent_id: int, factory: Factory) -> bool:
     """
     counter = factory.agent_step_counter.get(agent_id)
     if counter > factory.max_num_steps:
+        # Note that we track the maximum number of steps per agent, not in total.
         return True
     agent: Table = factory.tables[agent_id]
     return not agent.has_core()
@@ -30,6 +33,7 @@ def get_done(agent_id: int, factory: Factory) -> bool:
 
 def get_reward(agent_id: int, factory: Factory) -> float:
     """Get the reward for a single agent in its current state.
+    Similar to observations, reward terms get configured in deepkit.yml.
     """
     rewards = {}
     max_num_steps = factory.max_num_steps
@@ -60,6 +64,8 @@ def get_reward(agent_id: int, factory: Factory) -> float:
 
 
 def one_hot_encode(total: int, positions: List[int]):
+    """Compute one-hot encoding of a list of positions (ones) in
+    a vector of length 'total'."""
     lst = [0 for _ in range(total)]
     for position in positions:
         assert position <= total, "index out of bounds"
