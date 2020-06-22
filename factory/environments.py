@@ -180,7 +180,9 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
 
     def step(self, action: Dict):
         agents = action.keys()
-        for agent in agents: # TODO: why is len(action) < len(tables)
+        # assert len(agents) is self.num_agents
+
+        for agent in agents:
             agent_action = Action(action.get(agent))
             action_result = do_action(self.factory.tables[agent], self.factory, agent_action)
             self.factory.add_move(agent, agent_action, action_result)
@@ -190,11 +192,19 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
 
         rewards = {i: get_reward(i, self.factory) for i in agents}
 
-        dones = {i: get_done(i, self.factory) for i in agents}
-        dones['__all__'] = all(v for k, v in dones.items())
-        if dones['__all__']:
+        # Note: if an agent is "done", we don't get any new actions for said agent
+        # in a MultiAgentEnv. This is important, as tables without cores still need
+        # to move. We prevent this behaviour by setting all done fields to False until
+        # all tables are done.
+        all_done = all(not t.has_core() for t in self.factory.tables)
+        if all_done:
+            dones = {i: True for i in agents}
+            dones["__all__"] = True
             self.factory.add_completed_step_count()
             self.factory.print_stats()
+        else:
+            dones = {i: False for i in agents}
+            dones["__all__"] = False
 
         return observations, rewards, dones, {}
 

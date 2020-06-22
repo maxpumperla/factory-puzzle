@@ -6,8 +6,8 @@ config:
   high: 10
 
   # Factory settings
-  layout: small  # either "big" or "small"
-  num_tables: 3
+  layout: big  # either "big" or "small"
+  num_tables: 5
   num_cores: 3
   num_phases: 3
   random_init: True  # if random initialization is False, the factory will reset to the same state after each episode.
@@ -20,7 +20,7 @@ config:
   experiment_list: my_experiment
 
   # RL-specific configuration
-  env: RoundRobinFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
+  env: MultiAgentFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
   max_num_steps: 5000 # NOTE: need to set this high enough for the big factory
   masking: True  # whether to use action masking
   algorithm: PPO  # Choose from PPO, DQN, MARWIL
