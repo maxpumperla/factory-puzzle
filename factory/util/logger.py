@@ -7,9 +7,13 @@ class DeepKitLogger(Logger):
     def _init(self):
         import deepkit
         self.experiment = deepkit.experiment(new=True)
+        experiment_list = SIMULATION_CONFIG.get("experiment_list")
+        if experiment_list:
+            self.experiment.set_list(experiment_list)
         config = copy.deepcopy(self.config)
         config.update(SIMULATION_CONFIG)
-        # Note: this causes deepkit to crash
+
+        # Note: this causes deepkit to crash (np.inf value)
         if "vf_clip_param" in config.keys():
             config.pop("vf_clip_param")
         self.experiment.set_full_config(config)

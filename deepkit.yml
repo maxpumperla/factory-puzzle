@@ -17,6 +17,7 @@ config:
   local_mode: False  # if "True", will start ray as single process for easier debugging in your IDE
   deepkit_logging: True  #
   deepkit_account: deepkit # or localhost
+  experiment_list: my_experiment
 
   # RL-specific configuration
   env: RoundRobinFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
@@ -80,7 +81,7 @@ ignore:
 
 title: Factory solver
 
-list: test-experiment
+list: my_experiment
 
 labels:
   - rllib
