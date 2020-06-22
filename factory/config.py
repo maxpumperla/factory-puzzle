@@ -19,6 +19,10 @@ def get_observation_names():
     return [k for k, v in SIMULATION_CONFIG.items() if k.startswith('obs_') and v is True]
 
 
+def get_reward_names():
+    return [k for k, v in SIMULATION_CONFIG.items() if k.startswith('rew_') and v is True]
+
+
 def factory_from_config(config):
     if config is None:
         config = SIMULATION_CONFIG

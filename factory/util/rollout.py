@@ -9,6 +9,9 @@ from ray.tune.registry import register_env
 
 register_env("factory", lambda _: FactoryEnv())
 ENV = "factory"
+from ray.rllib.models import ModelCatalog
+from factory.util.masking import ActionMaskingTFModel, MASKING_MODEL_NAME
+ModelCatalog.register_custom_model(MASKING_MODEL_NAME, ActionMaskingTFModel)
 
 
 def run(checkpoint, cls, steps=1000, out=None, config_args={}):

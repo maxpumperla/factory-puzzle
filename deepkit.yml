@@ -35,47 +35,54 @@ config:
   actions: 5
   low: -1
   high: 10
+  local_mode: False
 
   # Factory settings
   layout: small
-  num_tables: 1
-  num_cores: 1
+  num_tables: 3
+  num_cores: 3
   num_phases: 3
   random_init: True
-#  seed: 1337
+  # seed: 1337
 
   # Logging & Tracking
   deepkit_logging: True
   deepkit_account: deepkit # or localhost
 
   # RL-specific configuration
-  env: MultiAgentFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
+  env: RoundRobinFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
   max_num_steps: 5000 # NOTE: need to set this high enough for the big factory
   masking: True
-  use_dqn: True
+  use_dqn: False
   use_offline_data: False
   num_samples: 4
-  multi_policy: False # Note: this only work for "MultiAgentEnv"
+  multi_policy: False # Note: this only works for "MultiAgentEnv"
+
+
+  ## Agent & core obs
+  obs_agent_id: False
+  obs_agent_coordinates: False
+
+  obs_agent_has_core: False
+  obs_agent_core_target_coordinates: False
+
+  # does not make much sense
+  obs_all_cores_one_hot: False
 
   ## Neighbour obs
   obs_agent_has_neighbour: False
   obs_agent_free_neighbour: True
 
-  ## Agent & core obs
-  obs_agent_id: True
-  obs_agent_coordinates: True
-
-  obs_agent_has_core: True
-  obs_agent_core_target_coordinates: True
-
   ## One-hot representation obs
-  obs_agent_id_one_hot: False
-  obs_agent_core_target_one_hot: False
-  obs_all_tables_one_hot: False
+  obs_agent_id_one_hot: True
+  obs_agent_core_target_one_hot: True
+  obs_all_tables_one_hot: True
 
-
-  # does not make much sense
-  obs_all_cores_one_hot: False
+  # Rewards
+  rew_collisions: True
+  rew_found_target: True
+  rew_avoid_cores: True
+  rew_punish_slow_tables: False
 
 
 command: python examples/save_trainer.py

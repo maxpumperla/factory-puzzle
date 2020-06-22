@@ -115,12 +115,12 @@ def apply_multi_policy(config):
     multi_policy = SIMULATION_CONFIG.get("multi_policy")
     if multi_policy:
         num_agents = SIMULATION_CONFIG.get("num_tables")
+        # TODO: currently seems to crash deepkit
         config["multiagent"] = {
             "policies": { str(i): (None, get_observation_space(SIMULATION_CONFIG),
                        get_action_space(SIMULATION_CONFIG), {}) for i in range(num_agents)},
             "policy_mapping_fn": lambda agent_id: str(agent_id),
         }
-
     return config
 
 
