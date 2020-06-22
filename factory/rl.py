@@ -27,7 +27,7 @@ def get_config(algo):
     result["num_gpus"] = 0
     result["num_workers"] = 4
     result["eager"] = False
-    result['train_batch_size'] = 8000
+    # result['train_batch_size'] = 8000
     result['batch_mode'] = 'complete_episodes'
 
     result = apply_all_configs(result)
@@ -113,7 +113,7 @@ def get_tune_run_config(algorithm=None,
             'sgd_minibatch_size': tune.sample_from(lambda spec: random.choice([128, 512, 2048])),
         })
     if SIMULATION_CONFIG.get("algorithm") == "MARWIL":
-        base_path = os.path.abspath(".")
+        base_path = os.path.abspath("..")
         base_config.get('config').update({
             # When beta is 0, MARWIL is reduced to imitation learning
             'beta': 1.0 - SIMULATION_CONFIG.get("offline_data_ratio"),
@@ -124,14 +124,6 @@ def get_tune_run_config(algorithm=None,
             # Whether to calculate cumulative rewards
             "postprocess_inputs": True,
             "batch_mode": "complete_episodes",
-            # Learning rate for adam optimizer
-            "lr": 1e-4,
-            # Number of timesteps collected for each SGD round
-            "train_batch_size": 2000,
-            # Number of steps max to keep in the batch replay buffer
-            "replay_buffer_size": 100000,
-            # Number of steps to read before learning starts
-            "learning_starts": 0,
         })
 
     base_config["config"] = apply_all_configs(base_config.get("config"))

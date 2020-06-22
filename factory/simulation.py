@@ -29,6 +29,9 @@ class Factory:
         self.action_counter = Counter()
         self.step_completion_counter: Dict[int, List[int]] = {t: [] for t in range(len(self.tables))}
 
+    def get_paths(self, a ,b):
+        return []
+
     def done(self):
         return all([c.done() for c in self.cores])
 
