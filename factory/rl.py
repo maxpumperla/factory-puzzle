@@ -54,6 +54,23 @@ def default_model():
     return model
 
 
+def get_algorithm():
+    from ray.rllib.agents.dqn import DQNTrainer
+    from ray.rllib.agents.ppo import PPOTrainer
+    from ray.rllib.agents.marwil import MARWILTrainer
+
+    algo: str = SIMULATION_CONFIG.get("algorithm")
+    if algo == "PPO":
+        return PPOTrainer
+    elif algo == "DQN":
+        return DQNTrainer
+    elif algo == "MARWIL":
+        return MARWILTrainer
+    else:
+        raise ValueError(f"Unsupported algorithm {algo}, choose from either 'PPO"
+                         f", 'DQN', or 'MARWIL'.")
+
+
 def get_tune_run_config(algorithm=None,
                         local_dir=os.path.expanduser("."),
                         scheduler=default_scheduler(),
@@ -61,7 +78,7 @@ def get_tune_run_config(algorithm=None,
     if not algorithm:
         from ray.rllib.agents.dqn import DQNTrainer
         from ray.rllib.agents.ppo import PPOTrainer
-        algorithm = DQNTrainer if SIMULATION_CONFIG.get("use_dqn") else PPOTrainer
+        algorithm = get_algorithm()
 
     base_config = {
         'run_or_experiment': algorithm,
@@ -84,7 +101,7 @@ def get_tune_run_config(algorithm=None,
         'max_failures': 1,
         'export_formats': ['model']
     }
-    if not SIMULATION_CONFIG.get("use_dqn"):
+    if SIMULATION_CONFIG.get("algorithm") == "PPO":
         base_config.get('config').update({
             'use_gae': True,
             'vf_loss_coeff': 1.0,
@@ -94,6 +111,27 @@ def get_tune_run_config(algorithm=None,
             'entropy_coeff': 0.0,
             'num_sgd_iter': tune.sample_from(lambda spec: random.choice([10, 20, 30])),
             'sgd_minibatch_size': tune.sample_from(lambda spec: random.choice([128, 512, 2048])),
+        })
+    if SIMULATION_CONFIG.get("algorithm") == "MARWIL":
+        base_path = os.path.abspath(".")
+        base_config.get('config').update({
+            # When beta is 0, MARWIL is reduced to imitation learning
+            'beta': 1.0 - SIMULATION_CONFIG.get("offline_data_ratio"),
+            'input': os.path.join(base_path, "factory-offline-data"),
+            "input_evaluation": ["is", "wis"],
+            # Balancing value estimation loss and policy optimization loss
+            "vf_coeff": 1.0,
+            # Whether to calculate cumulative rewards
+            "postprocess_inputs": True,
+            "batch_mode": "complete_episodes",
+            # Learning rate for adam optimizer
+            "lr": 1e-4,
+            # Number of timesteps collected for each SGD round
+            "train_batch_size": 2000,
+            # Number of steps max to keep in the batch replay buffer
+            "replay_buffer_size": 100000,
+            # Number of steps to read before learning starts
+            "learning_starts": 0,
         })
 
     base_config["config"] = apply_all_configs(base_config.get("config"))
@@ -141,7 +179,8 @@ def apply_masking_model(config):
         from factory.util.masking import ActionMaskingTFModel, MASKING_MODEL_NAME
         ModelCatalog.register_custom_model(MASKING_MODEL_NAME, ActionMaskingTFModel)
         config['model'] = {"custom_model": MASKING_MODEL_NAME}
-        if SIMULATION_CONFIG.get("use_dqn"):
+        if SIMULATION_CONFIG.get("algorithm") == "DQN":
+            # Special settings required to make masking work for DQNs.
             config['hiddens'] = []
             config['dueling'] = False
     return config
@@ -155,12 +194,15 @@ def apply_offline_data(config):
         #     assert priority > 0
         #   For PPO this will fail either way with missing "advantages" key.
         #   TL;DR: generating offline data from agents seems fine, manually creating it is very difficult.
-        config['input'] = "factory-offline-data"
-        # NOTE: this is how you'd roll-out 50% data from offline experience, 50% as usual
-        #     {
-        #     "factory-offline-data": 0.5,
-        #     "sampler": 0.5,
-        # }
+
+        # Basic setup for 100% offline data
+        # config['input'] = "factory-offline-data"
+
+        ratio = SIMULATION_CONFIG.get("offline_data_ratio")
+        config['input'] = {
+            "factory-offline-data": ratio,
+            "sampler": 1- ratio,
+        }
         config["input_evaluation"] = []
         config['explore'] = False
         config['postprocess_inputs'] = True
@@ -225,6 +267,8 @@ class Stopper:
         # Episode steps filter
         if result['training_iteration'] == 1:
             self.entropy_start = result.get("info").get("learner").get("default_policy").get("entropy") # Set start value
+            if not self.entropy_start:
+                self.entropy_start = 0
             # Too many steps within episode
             self.too_many_steps = result['timesteps_total'] > 200000  # Max steps
             if not self.should_stop and self.too_many_steps:
