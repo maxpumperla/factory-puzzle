@@ -10,6 +10,7 @@ from copy import deepcopy
 from factory.util.logger import DeepKitLogger
 from factory.environments import get_action_space, get_observation_space
 
+
 HYPER_PARAM_MUTATIONS = {
     'lambda': np.linspace(0.9, 1.0, 5).tolist(),
     'clip_param': np.linspace(0.01, 0.5, 5).tolist(),
@@ -115,12 +116,12 @@ def apply_multi_policy(config):
     multi_policy = SIMULATION_CONFIG.get("multi_policy")
     if multi_policy:
         num_agents = SIMULATION_CONFIG.get("num_tables")
+        # TODO: currently seems to crash deepkit
         config["multiagent"] = {
             "policies": { str(i): (None, get_observation_space(SIMULATION_CONFIG),
                        get_action_space(SIMULATION_CONFIG), {}) for i in range(num_agents)},
             "policy_mapping_fn": lambda agent_id: str(agent_id),
         }
-
     return config
 
 

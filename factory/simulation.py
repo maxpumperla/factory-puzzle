@@ -3,8 +3,9 @@ from collections import Counter
 import pprint
 from .models import *
 
-PRINTER = pprint.PrettyPrinter(indent=4)
+PRINTER = pprint.PrettyPrinter(indent=2)
 VERBOSE = True
+
 
 class Factory:
     """A Factory sets up all components (nodes, rails, tables) needed to
@@ -22,12 +23,11 @@ class Factory:
 
         # Stats counter
         self.step_count = 0
-        self.agent_step_counter = Counter()
+        self.agent_step_counter: Dict[int, int] = {t: 0 for t in range(len(self.tables))}
         self.moves: Dict[int, List[ActionResult]] = {t: [] for t in range(len(self.tables))}
         self.move_counter = Counter()
         self.action_counter = Counter()
         self.step_completion_counter: Dict[int, List[int]] = {t: [] for t in range(len(self.tables))}
-
 
     def done(self):
         return all([c.done() for c in self.cores])

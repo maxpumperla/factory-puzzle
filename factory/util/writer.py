@@ -6,6 +6,7 @@ SCALE_X, SCALE_Y = 4, 2
 
 
 def node_type(node: Node) -> str:
+    """Node, Table or Core?"""
     text = "N"
     if node.has_table():
         text = "T"

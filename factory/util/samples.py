@@ -1,7 +1,7 @@
 from factory.models import Node, Direction, Rail, Table, Core, Phase
 from factory.simulation import Factory
 import random
-
+import numpy as np
 
 def get_default_factory(random_seed=None, num_tables=8, num_cores=3, num_phases=1,
                         max_num_steps=1000, **kwargs) -> Factory:
@@ -21,6 +21,7 @@ def get_default_factory(random_seed=None, num_tables=8, num_cores=3, num_phases=
         14--13--12--11--07
     """
     if random_seed:
+        np.random.seed(random_seed)
         random.seed(random_seed)
 
     node_19   = Node("pt19",   coordinates=(4, 0))
@@ -127,6 +128,7 @@ def get_small_default_factory(random_seed=None, num_tables=4, num_cores=2, num_p
     """
     if random_seed:
         random.seed(random_seed)
+        np.random.seed(random_seed)
 
     node_1_c = Node("pt1_c", coordinates=(0, 0), is_rail=True)
     node_1_b = Node("pt1_b", coordinates=(0, 1), is_rail=True)
@@ -174,19 +176,20 @@ def get_small_default_factory(random_seed=None, num_tables=4, num_cores=2, num_p
 def create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases):
     # tables go on nodes with shuttles
     shuttle_nodes = [n for n in nodes if n.has_shuttle]
-    random.shuffle(shuttle_nodes)
     tables = []
-    for idx in range(num_tables):
-        tables.append(Table(shuttle_nodes[idx], name=f"table_{idx}"))
+    table_indices = np.random.choice(range(len(shuttle_nodes)), num_tables, replace=False)
+    for i in range(num_tables):
+        # Randomly select a node for each table.
+        table_idx = random.randint(0, len(shuttle_nodes))
+        tables.append(Table(shuttle_nodes[table_indices[i]], name=f"table_{i}"))
 
-    # random.shuffle(tables)
     # Core targets go on immobile nodes
     fixed_nodes = [n for n in nodes if not n.is_rail]
     for idx in range(num_cores):
         cycle = {}
-        # random.shuffle(nodes)
+        core_indices = np.random.choice(range(len(fixed_nodes)), num_phases, replace=False)
         for p in range(num_phases):
-            # TODO: re-use fixed nodes
-            cycle[Phase(p)] = fixed_nodes[p]
+            # For each core phase, randomly select a fixed node.
+            cycle[Phase(p)] = fixed_nodes[core_indices[p]]
         Core(tables[idx], cycle, f"core_{idx}")
     return tables

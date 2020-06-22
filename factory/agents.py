@@ -70,7 +70,7 @@ class RayAgent(Agent):
         return Action(self.agent.compute_action(observations))
 
 
-class Heuristic(Agent):
+class HeuristicAgent(Agent):
     """Apply a simple heuristic to get cores to targets."""
 
     def __init__(self, factory: Factory, name=None):
