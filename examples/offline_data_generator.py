@@ -1,4 +1,4 @@
-from factory.environments import FactoryEnv
+from factory.environments import RoundRobinFactoryEnv
 import numpy as np
 
 from ray.rllib.models.preprocessors import get_preprocessor
@@ -9,7 +9,7 @@ from ray.rllib.offline.json_writer import JsonWriter
 batch_builder = SampleBatchBuilder()
 writer = JsonWriter("./factory-offline-data")
 
-env = FactoryEnv()
+env = RoundRobinFactoryEnv()
 
 prep = get_preprocessor(env.observation_space)(env.observation_space)
 

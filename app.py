@@ -4,8 +4,7 @@ from factory.config import SIMULATION_CONFIG
 from factory.controls import do_action, ActionResult
 from factory.environments import FactoryEnv, RoundRobinFactoryEnv, MultiAgentFactoryEnv, get_observations
 from factory.environments import add_masking
-import ray.rllib.agents.dqn as dqn
-import ray.rllib.agents.ppo as ppo
+from factory.rl import get_algorithm
 
 
 import ray
@@ -98,15 +97,15 @@ def run_the_app():
     ])
     agent_id = int(table_agent[11])
 
+    env_name, env_class = environment_sidebar()
+    env = env_class()
+
     if is_random:
         agent = RandomAgent(factory, table_agent)
     else:
         policy_file_name = st.text_input('Enter path to checkpoint:')
-        env_name, env_class = environment_sidebar()
-        if SIMULATION_CONFIG.get("use_dqn"):
-            agent_cls = dqn.DQNTrainer
-        else:
-            agent_cls = ppo.PPOTrainer
+
+        agent_cls = get_algorithm()
         from ray.rllib.models import ModelCatalog
         from factory.util.masking import ActionMaskingTFModel, MASKING_MODEL_NAME
         ModelCatalog.register_custom_model(MASKING_MODEL_NAME, ActionMaskingTFModel)
@@ -132,7 +131,6 @@ def run_the_app():
     if multi_agent:
         agent_id = 0
 
-    env = env_class()
 
     if start:
         invalids = 0
