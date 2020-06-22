@@ -21,6 +21,7 @@ def get_default_factory(random_seed=None, num_tables=8, num_cores=3, num_phases=
         14--13--12--11--07
     """
     if random_seed:
+        np.random.seed(random_seed)
         random.seed(random_seed)
 
     node_19   = Node("pt19",   coordinates=(4, 0))
@@ -127,6 +128,7 @@ def get_small_default_factory(random_seed=None, num_tables=4, num_cores=2, num_p
     """
     if random_seed:
         random.seed(random_seed)
+        np.random.seed(random_seed)
 
     node_1_c = Node("pt1_c", coordinates=(0, 0), is_rail=True)
     node_1_b = Node("pt1_b", coordinates=(0, 1), is_rail=True)

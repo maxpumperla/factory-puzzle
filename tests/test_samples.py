@@ -8,5 +8,5 @@ def test_default_factory():
     assert len(factory.tables) == 8
     assert factory.name == "DefaultFactory"
 
-    assert factory.tables[0].node.coordinates == (7, 2)
-    assert factory.tables[0].core.current_target.coordinates == (4, 1)
+    assert factory.tables[0].node.coordinates == (4, 6)
+    assert factory.tables[0].core.current_target.coordinates == (6, 1)
