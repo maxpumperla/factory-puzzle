@@ -6,7 +6,7 @@ from factory.controls import do_action, Action, ActionResult
 from factory.environments import MultiAgentFactoryEnv
 import numpy as np
 from ray.rllib.models.preprocessors import get_preprocessor
-from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder
+from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder, MultiAgentSampleBatchBuilder
 from ray.rllib.offline.json_writer import JsonWriter
 
 
@@ -19,18 +19,11 @@ env = MultiAgentFactoryEnv()
 preprocessor = get_preprocessor(env.observation_space)(env.observation_space)
 
 
-def get_shortest_path(a, b, factory, obstruction_factor=2):
-    paths = factory.get_paths(a, b)
-    distances = []
-    for path in paths: # [a, n1, n2, n3, b]
-        dist = 123 # measure([a, n1, n2, n3, b]) = 5 + 4 * obstructions
-        distances.append(dist)
-
-
 class IDAStar:
 
-    def __init__(self):
-        self.factory = get_small_default_factory()
+    def __init__(self, factory=None):
+        # Use a default factory if none provided
+        self.factory = get_small_default_factory() if not factory else factory
 
     def train(self):
         """Train IDA* here"""
@@ -45,8 +38,8 @@ class IDAStar:
         }
 
 
-    def write_batches(self):
-        for episode_id in range(100):
+    def write_batches(self, num_episodes=100):
+        for episode_id in range(num_episodes):
 
             observations = env.reset()
             prev_action = np.zeros_like(env.action_space.sample())

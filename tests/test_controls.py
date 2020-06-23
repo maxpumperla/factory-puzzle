@@ -15,7 +15,7 @@ def test_table_controller():
     node_a.add_neighbour(node_b, Direction.right)
     node_b.add_neighbour(node_c, Direction.right)
     node_c.add_neighbour(target, Direction.right)
-    nodes = [start, node_a, node_b, node_c, target]
+    nodes = [start, node_a, node_b, node_c, target, collision]
 
     rail = Rail(nodes=[node_a, node_b, node_c], shuttle=node_b)
     rails = [rail]

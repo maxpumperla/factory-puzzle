@@ -135,7 +135,7 @@ def get_small_default_factory(random_seed=None, num_tables=4, num_cores=2, num_p
     node_1_a = Node("pt1_a", coordinates=(0, 3), is_rail=True)
     node_2_a = Node("pt2_a", coordinates=(1, 0), is_rail=True)
     node_2_b = Node("pt2_b", coordinates=(3, 0), is_rail=True)
-    node_3_b = Node("pt3_c", coordinates=(4, 0), is_rail=True)
+    node_3_b = Node("pt3_b", coordinates=(4, 0), is_rail=True)
     node_3_a = Node("pt3_a", coordinates=(4, 2), is_rail=True)
     node_4   = Node("pt4",   coordinates=(3, 2))
     node_5_c = Node("pt5_c", coordinates=(2, 1), is_rail=True)
