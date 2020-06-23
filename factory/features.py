@@ -48,7 +48,7 @@ def get_reward(agent_id: int, factory: Factory) -> float:
     # high incentive for reaching a target, quickly
     time_taken = steps / float(max_num_steps)
     if agent.is_at_target:
-        rewards["rew_found_target"] = 30.0 * (1.0 - time_taken)
+        rewards["rew_found_target"] = 30.0 * (1.0 - time_taken) ** 2
 
     # punish if too slow
     if steps == max_num_steps:
