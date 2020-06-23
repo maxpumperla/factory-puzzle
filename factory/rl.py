@@ -113,6 +113,7 @@ def get_tune_run_config(algorithm=None,
             'sgd_minibatch_size': tune.sample_from(lambda spec: random.choice([128, 512, 2048])),
         })
     if SIMULATION_CONFIG.get("algorithm") == "MARWIL":
+        # FIXME: better handling of the base path (depends on "where" you execute this)
         base_path = os.path.abspath(".")
         base_config.get('config').update({
             # When beta is 0, MARWIL is reduced to imitation learning

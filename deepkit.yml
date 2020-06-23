@@ -6,10 +6,10 @@ config:
   high: 10
 
   # Factory settings
-  layout: small  # either "big" or "small"
-  num_tables: 3
-  num_cores: 3
-  num_phases: 3
+  layout: big  # either "big" or "small"
+  num_tables: 8
+  num_cores: 4
+  num_phases: 1
   random_init: True  # if random initialization is False, the factory will reset to the same state after each episode.
   # seed: 1337  # Optional random seed to have full control over initial factory state.
 
@@ -20,14 +20,14 @@ config:
   experiment_list: my_experiment
 
   # RL-specific configuration
-  env: RoundRobinFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
+  env: MultiAgentFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
   max_num_steps: 5000 # NOTE: need to set this high enough for the big factory
   masking: True  # whether to use action masking
   algorithm: PPO  # Choose from PPO, DQN, MARWIL
   use_offline_data: False  # Use previously generated offline data (don't use for now, experimental)
   offline_data_ratio: 0.5
   num_samples: 4  # Ray rllib's "num_samples" extracted for convenience
-  multi_policy: False # Using multiple policies or not. This only works for "MultiAgentEnv"
+  multi_policy: False  # Using multiple policies or not. This only works for "MultiAgentEnv"
 
 
   # Observation selection

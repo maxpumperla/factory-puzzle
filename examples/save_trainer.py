@@ -11,7 +11,11 @@ from ray.tune.logger import pretty_print
 
 ray.init(webui_host='127.0.0.1', local_mode=True)
 config = get_config(algo)
+# TODO: this needs to be fixed for masking (register model etc.)
+
 register_env_from_config()
+
+config['output'] = "factory-offline-data"
 
 trainer = Trainer(config=config, env='factory')
 

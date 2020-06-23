@@ -28,7 +28,7 @@ setuptools.setup(
     platforms=["Linux", "OS-X", "Windows"],
     include_package_data=True,
     install_requires=[
-        "gym", "ray[rllib]", "tensorflow", "streamlit", "opencv-python", "gputil", "deepkit"
+        "gym", "ray[rllib]", "tensorflow", "streamlit", "opencv-python", "gputil", "networkx", "deepkit"
     ],
     extras_require={
         "dev": ["black", "pre-commit", "pytest"],

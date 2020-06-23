@@ -50,10 +50,11 @@ def update_action_mask(env, agent=None):
     agent_node = env.factory.tables[current_agent].node
 
     return np.array([
-        agent_node.has_neighbour(Direction.up),
-        agent_node.has_neighbour(Direction.right),
-        agent_node.has_neighbour(Direction.down),
-        agent_node.has_neighbour(Direction.left),
+        # Mask out illegal moves and collisions
+        can_move_in_direction(agent_node, Direction.up, env.factory),
+        can_move_in_direction(agent_node, Direction.right, env.factory),
+        can_move_in_direction(agent_node, Direction.down, env.factory),
+        can_move_in_direction(agent_node, Direction.left, env.factory),
         1.0,  # Not moving is always allowed
     ])
 
@@ -180,7 +181,9 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
 
     def step(self, action: Dict):
         agents = action.keys()
-        for agent in agents: # TODO: why is len(action) < len(tables)
+        # assert len(agents) is self.num_agents
+
+        for agent in agents:
             agent_action = Action(action.get(agent))
             action_result = do_action(self.factory.tables[agent], self.factory, agent_action)
             self.factory.add_move(agent, agent_action, action_result)
@@ -190,11 +193,25 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
 
         rewards = {i: get_reward(i, self.factory) for i in agents}
 
-        dones = {i: get_done(i, self.factory) for i in agents}
-        dones['__all__'] = all(v for k, v in dones.items())
-        if dones['__all__']:
+        # Note: if an agent is "done", we don't get any new actions for said agent
+        # in a MultiAgentEnv. This is important, as tables without cores still need
+        # to move. We prevent this behaviour by setting all done fields to False until
+        # all tables are done.
+        all_cores_delivered = all(not t.has_core() for t in self.factory.tables)
+        counts = [self.factory.agent_step_counter.get(agent) for agent in agents]
+        # maximum steps are counted per agent, not in total (makes it easier to keep config stable)
+        max_steps_reached = all(count > self.factory.max_num_steps for count in counts)
+
+        all_done = all_cores_delivered or max_steps_reached
+
+        if all_done:
+            dones = {i: True for i in agents}
+            dones["__all__"] = True
             self.factory.add_completed_step_count()
             self.factory.print_stats()
+        else:
+            dones = {i: False for i in agents}
+            dones["__all__"] = False
 
         return observations, rewards, dones, {}
 
