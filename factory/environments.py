@@ -197,8 +197,9 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
         # in a MultiAgentEnv. This is important, as tables without cores still need
         # to move. We prevent this behaviour by setting all done fields to False until
         # all tables are done.
-        # TODO: still need to check max num steps
-        all_done = all(not t.has_core() for t in self.factory.tables)
+        counts = [self.factory.agent_step_counter.get(agent) for agent in agents]
+        all_done = all(not t.has_core() for t in self.factory.tables) or sum(counts) > self.factory.max_num_steps
+
         if all_done:
             dones = {i: True for i in agents}
             dones["__all__"] = True
