@@ -5,7 +5,7 @@ import numpy as np
 from typing import List
 import importlib
 
-__all__ = ["get_observations", "get_reward", "get_done"]
+__all__ = ["get_observations", "get_reward", "get_done", "can_move_in_direction"]
 
 
 def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
@@ -73,7 +73,7 @@ def one_hot_encode(total: int, positions: List[int]):
     return lst
 
 
-def check_neighbour(node: Node, direction: Direction, factory: Factory):
+def can_move_in_direction(node: Node, direction: Direction, factory: Factory):
     """If an agent has a neighbour in the specified direction, add a 1,
     else 0 to the observation space. If that neighbour is free, add 1,
     else 0 (a non-existing neighbour counts as occupied).
@@ -96,7 +96,7 @@ def has_core_neighbour(node: Node, factory: Factory):
     of tables with cores."""
     for direction in Direction:
         has_direction = node.has_neighbour(direction)
-        is_free = check_neighbour(node, direction, factory)
+        is_free = can_move_in_direction(node, direction, factory)
         if has_direction and not is_free:
             neighbour: Node = node.get_neighbour(direction)
             if neighbour.has_table() and neighbour.table.has_core():
@@ -128,10 +128,10 @@ def obs_agent_free_neighbour(agent_id: int, factory: Factory):
     agent: Table = factory.tables[agent_id]
 
     return np.asarray([
-        check_neighbour(agent.node, Direction.up, factory),
-        check_neighbour(agent.node, Direction.right, factory),
-        check_neighbour(agent.node, Direction.down, factory),
-        check_neighbour(agent.node, Direction.left, factory)
+        can_move_in_direction(agent.node, Direction.up, factory),
+        can_move_in_direction(agent.node, Direction.right, factory),
+        can_move_in_direction(agent.node, Direction.down, factory),
+        can_move_in_direction(agent.node, Direction.left, factory)
     ])
 
 

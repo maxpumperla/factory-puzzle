@@ -50,10 +50,11 @@ def update_action_mask(env, agent=None):
     agent_node = env.factory.tables[current_agent].node
 
     return np.array([
-        agent_node.has_neighbour(Direction.up),
-        agent_node.has_neighbour(Direction.right),
-        agent_node.has_neighbour(Direction.down),
-        agent_node.has_neighbour(Direction.left),
+        # Mask out illegal moves and collisions
+        can_move_in_direction(agent_node, Direction.up, env.factory),
+        can_move_in_direction(agent_node, Direction.right, env.factory),
+        can_move_in_direction(agent_node, Direction.down, env.factory),
+        can_move_in_direction(agent_node, Direction.left, env.factory),
         1.0,  # Not moving is always allowed
     ])
 
