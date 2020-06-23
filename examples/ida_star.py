@@ -36,6 +36,7 @@ class IDAStar:
         return distance
 
     def find_path(self, root: Table):
+        """Main method of IDA*, which finds a feasible path of a table to its target or returns None"""
         if not root.has_core():
             raise Exception("Can only compute solutions for tables with a core.")
 
@@ -52,6 +53,7 @@ class IDAStar:
                 return None
 
     def search(self, path: List, target: Node, g: int, h: int):
+        """Iterative search method for IDA*"""
         last_node = path[-1]
         f = g + self.get_cost_bound(last_node, target)
 
@@ -131,4 +133,5 @@ class IDAStar:
 
 if __name__ == "__main__":
     algo = IDAStar()
+    # TODO: cycle through all tables with cores and solve for them, then write batches.
     algo.write_batches()
