@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, TypeVar
 from collections import Counter
 import networkx as nx
 
@@ -8,24 +8,55 @@ from .models import *
 PRINTER = pprint.PrettyPrinter(indent=2)
 VERBOSE = True
 
+F = TypeVar('F', bound='Factory')
 
-def get_shortest_path_with_distance(a,b, factory, obstruction_factor=4):
-    distances_and_paths = get_paths_with_distances(a, b, factory, obstruction_factor)
+
+def get_shortest_weighted_path(a: Node, b: Node, factory: F, obstruction_factor: int = 4):
+    distances_and_paths = get_paths_distances_obstructions(a, b, factory, obstruction_factor)
     return distances_and_paths[0]
 
 
-def get_paths_with_distances(a, b, factory, obstruction_factor=4):
+def get_paths_distances_obstructions(a: Node, b: Node, factory: F, obstruction_factor=4):
     paths = factory.get_paths(a, b)
     distances = []
+    weighted_distances = []
+    table_numbers = []
+    obstructions = []
     for path in paths:
-        # exclude the source from table counting
-        tables_on_path = sum([n.has_table() for n in path[1:]])
-        # Weighted Manhattan distance: each table on the path contributes "obstruction_factor"
-        # all other nodes on the path just 1.
-        dist = obstruction_factor * tables_on_path + (len(path) - tables_on_path)
-        distances.append(dist)
-    paths_and_distances = list(zip(paths, distances))
-    return sorted(paths_and_distances, key=lambda pad: pad[1])
+        num_tables_on_path = get_num_tables_on_path(path)
+        tables_on_path = [n.table for n in path[1:] if n.has_table()]
+        obstructions.append(tables_on_path)
+        table_numbers.append(num_tables_on_path)
+        distances.append(len(path))
+        weighted_distances.append(obstruction_factor * num_tables_on_path + (len(path) - num_tables_on_path))
+
+    paths_dists_obstructions_tables = list(zip(paths, weighted_distances, distances, obstructions, table_numbers))
+    return sorted(paths_dists_obstructions_tables, key=lambda pad: pad[1])
+
+
+def get_num_tables_on_path(path: List[Node]) -> int:
+    return sum([n.has_table() for n in path[1:]])
+
+
+def can_move_away(table: Table, path: List[Node], factory: F):
+    """Determine if a table on a path can move to a factory node not on that path."""
+    allowed_target_nodes = [n for n in factory.nodes if n not in path]
+    table_node = table.node
+    if table_node not in path:
+        raise ValueError("Table is not on the path, so it can't move away")
+
+    possible_paths = []
+    for target in allowed_target_nodes:
+        possible_paths += get_paths_distances_obstructions(table_node, target, factory)
+
+    unobstructed_paths =[p for p in possible_paths if p[4] is 0]
+    if len(unobstructed_paths) is 0:
+        return False, None
+
+    sorted_solutions = sorted(unobstructed_paths, key=lambda p: p[1])
+    shortest_path_to_move_away = sorted_solutions[0][0]
+    return True, shortest_path_to_move_away
+
 
 
 class Factory:
@@ -65,8 +96,12 @@ class Factory:
 
         self.paths: Dict[Tuple[int, int], List[int]] = {}
 
-    def get_paths(self, source_node: Node , sink_node: Node):
+    def is_solved(self):
+        """A factory is solved if no table has a core anymore."""
+        return len([t for t in self.tables if t.has_core()]) is 0
 
+    def get_paths(self, source_node: Node , sink_node: Node):
+        """Get all possible paths from source to sink"""
         # Node to index
         source = self.nodes.index(source_node)
         sink = self.nodes.index(sink_node)
@@ -83,6 +118,16 @@ class Factory:
         self.paths[(source, sink)] = all_paths
 
         return all_paths
+
+    def get_unobstructed_paths(self, source_node: Node, sink_node: Node):
+        """Get all paths for which there's no table in the way between source and sink"""
+        all_paths = self.get_paths(source_node, sink_node)
+        unobstructed_paths = []
+        for path in all_paths:
+            if get_num_tables_on_path(path) is 0:
+                unobstructed_paths.append(path)
+
+        return unobstructed_paths
 
     def done(self):
         return all([c.done() for c in self.cores])
