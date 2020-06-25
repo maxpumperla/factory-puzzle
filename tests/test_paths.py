@@ -1,5 +1,7 @@
 from factory.util.samples import get_small_default_factory, get_default_factory
-from factory.simulation import get_paths_with_distances, get_shortest_path_with_distance
+from factory.simulation import get_shortest_weighted_path, get_paths_distances_obstructions
+from factory.controls import move_table_along_path
+
 
 def test_small_factory_paths():
     factory = get_small_default_factory()
@@ -40,7 +42,7 @@ def test_get_paths_with_distances():
     b = nodes[10]  # pt1_c
 
     factor = 4
-    paths_and_distances = get_paths_with_distances(a, b, factory, factor)
+    paths_and_distances = get_paths_distances_obstructions(a, b, factory, factor)
     assert len(paths_and_distances) is 3
 
     paths = [pad[0] for pad in paths_and_distances]
@@ -49,5 +51,46 @@ def test_get_paths_with_distances():
 
     assert [pad[1] for pad in paths_and_distances] == [4 * 1 + 1 * factor, 5 * 1 + 2 * factor , 6 * 1 + 2 * factor]
 
-    shortest = get_shortest_path_with_distance(a, b, factory, factor)
+    shortest = get_shortest_weighted_path(a, b, factory, factor)
     assert shortest[1] is 4 * 1 + 1 * factor
+
+
+def test_small_unobstructed_paths():
+    factory = get_small_default_factory(num_tables=1, num_cores=1)
+
+    nodes = factory.nodes
+    a = nodes[5]  # pt5_c
+    b = nodes[0]  # pt3_a
+    a_to_b_paths = factory.get_paths(a, b)
+    assert len(a_to_b_paths) is 4
+
+    unobstructed_paths = factory.get_unobstructed_paths(a, b)
+    assert len(unobstructed_paths) is 2
+
+    # paths, weighted_distances, distances, obstructions, tables_numbers
+    pdo = get_paths_distances_obstructions(a, b, factory)
+    assert len(pdo) is 4
+    assert pdo[0][1] == 4
+    assert pdo[0][2] == 4
+    assert pdo[0][3] == []
+    assert pdo[0][4] == 0
+
+
+def test_move_along_path():
+    factory = get_small_default_factory(num_tables=1, num_cores=1)
+
+    nodes = factory.nodes
+    node = nodes[7]  # pt7
+    target = nodes[0]  # pt3_a
+
+    assert node.has_table()
+    assert not target.has_table()
+
+    paths = factory.get_paths(node, target)
+    path = paths[0]
+
+    move_table_along_path(path, factory)
+    assert target.has_table()
+
+
+
