@@ -1,9 +1,11 @@
 """"Controls specify how objects change state (how)."""
 import enum
 import random
+from typing import List
 
 from .models import Table, Direction, Node, Rail, ActionResult
 from .simulation import Factory
+from .util.writer import print_factory
 
 
 class Action(enum.IntEnum):
@@ -22,6 +24,69 @@ class Action(enum.IntEnum):
 def do_action(table: Table, factory: Factory, action: Action):
     return TableAndRailController(factory).do_action(table, action)
 
+
+def move_table_along_path(path: List[Node], factory: Factory):
+    if not  path[0].has_table():
+        raise ValueError("First element of the provided path has to have a table")
+    for i in range(len(path) - 1):
+        node = path[i]
+        table = node.table
+        next_node = path[i+1]
+
+        if not node.is_rail and next_node.is_rail:
+            rail = factory.get_rail(node=next_node)
+            if not rail.is_free():
+                shuttle = rail.shuttle_node()
+
+                # compute all rail-adjacent nodes
+                all_neighbours = []
+                for rail_node in rail.nodes:
+                    all_neighbours += [(k, n) for k, n in rail_node.neighbours.items()
+                                       if n and n not in rail.nodes and n not in path]
+
+                good_neighbours = [(k,v) for k, v in all_neighbours if not v.has_table()]
+
+                # If no good neighbours, move away adjacent tables first...
+                shuttle_target = None
+
+                if good_neighbours:
+                    # If we have an available nodes adjacent to this rail, just pick the first and go there.
+                    _, target_node = good_neighbours[0]
+                    all_paths = factory.get_paths(shuttle, target_node)
+                    print_factory(factory)
+                    path = all_paths[2]
+                    move_table_along_path(path, factory)
+
+                else:
+                    for _, non_rail_node in all_neighbours:
+                        free_adjacent_neighbours = [k for k, v in non_rail_node.neighbours.items()
+                                                    if v and not v.has_table()]
+                        if free_adjacent_neighbours:
+                            direction = Direction[free_adjacent_neighbours[0]]
+                            action = Action(direction.value)
+                            result = do_action(non_rail_node.table, factory, action)
+                            factory.add_move(factory.tables.index(non_rail_node.table), action, result)
+
+                        shuttle_target = non_rail_node
+
+                    print(shuttle.name)
+                    print(shuttle.coordinates)
+                    print([n.name for k, n in all_neighbours])
+                    print_factory(factory)
+
+                    rail_paths = factory.get_unobstructed_paths(shuttle, shuttle_target)
+                    rail_path = rail_paths[0]
+
+                    move_table_along_path(rail_path, factory)
+
+        direction_list = [direction for direction, n in node.neighbours.items() if n == next_node]
+        direction = Direction[direction_list[0]]
+        action = Action(direction.value)
+        result = do_action(table, factory, action)
+        factory.add_move(factory.tables.index(table), action, result)
+        assert result is not ActionResult.INVALID
+
+    return
 
 class BaseTableController:
 
