@@ -7,6 +7,8 @@ from .models import Table, Direction, Node, Rail, ActionResult
 from .simulation import Factory
 from .util.writer import print_factory
 
+verbose = False
+
 
 class Action(enum.IntEnum):
     """Move in a direction or stay where you are."""
@@ -53,7 +55,6 @@ def move_table_along_path(path: List[Node], factory: Factory):
                     # If we have an available nodes adjacent to this rail, just pick the first and go there.
                     _, target_node = good_neighbours[0]
                     all_paths = factory.get_paths(shuttle, target_node)
-                    print_factory(factory)
                     path = all_paths[2]
                     move_table_along_path(path, factory)
 
@@ -69,10 +70,11 @@ def move_table_along_path(path: List[Node], factory: Factory):
 
                         shuttle_target = non_rail_node
 
-                    print(shuttle.name)
-                    print(shuttle.coordinates)
-                    print([n.name for k, n in all_neighbours])
-                    print_factory(factory)
+                    if verbose:
+                        print(shuttle.name)
+                        print(shuttle.coordinates)
+                        print([n.name for k, n in all_neighbours])
+                        print_factory(factory)
 
                     rail_paths = factory.get_unobstructed_paths(shuttle, shuttle_target)
                     rail_path = rail_paths[0]

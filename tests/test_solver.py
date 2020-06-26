@@ -9,7 +9,7 @@ def test_heuristic_solving():
     assert factory.is_solved()
 
 
-def test_heuristic_solving_big_time():
+def test_heuristic_solving_big_many_cores():
     factory = get_default_factory(random_seed=37, num_tables=9, num_cores=9, num_phases=4)
     solve_factory(factory)
 
@@ -19,7 +19,7 @@ def test_heuristic_solving_big_time():
     factory.print_stats()
 
 
-def test_heuristic_solving_big_time_one_phase():
+def test_heuristic_solving_big_many_tables():
     factory = get_default_factory(random_seed=7, num_tables=13, num_cores=8, num_phases=1)
     solve_factory(factory)
 
@@ -27,3 +27,17 @@ def test_heuristic_solving_big_time_one_phase():
 
     factory.add_completed_step_count()
     factory.print_stats()
+
+
+def test_heuristic_solving_big_average():
+    failed = 0
+    for i in range(20):
+        factory = get_default_factory(random_seed=i*5, num_tables=8, num_cores=3, num_phases=1)
+        try:
+            solve_factory(factory)
+        except:
+            failed += 1
+
+    assert failed <= 10
+
+
