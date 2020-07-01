@@ -25,7 +25,7 @@ def do_action(table: Table, factory: Factory, action: Action):
 
 
 def move_table_along_path(path: List[Node], factory: Factory):
-    if not  path[0].has_table():
+    if not path[0].has_table():
         raise ValueError("First element of the provided path has to have a table")
 
     results = []
@@ -39,8 +39,8 @@ def move_table_along_path(path: List[Node], factory: Factory):
         if not node.is_rail and next_node.is_rail:
             rail = factory.get_rail(node=next_node)
             if not rail.is_free():
-                # this shuttle obstructs the path of our moving table
-                shuttle = rail.shuttle_node()
+                # this table obstructs the path of our moving table
+                rail_table = rail.get_table_node().table
 
                 all_rail_neighbours = []
                 for rail_node in rail.nodes:
@@ -50,16 +50,14 @@ def move_table_along_path(path: List[Node], factory: Factory):
 
                 free_rail_neighbours = [(k, v) for k, v in all_rail_neighbours if not v.has_table()]
 
-                # The rail shuttle is occupied and needs to be emptied
-                shuttle_target = None
-
                 if free_rail_neighbours:
                     # If we have free nodes adjacent to this rail, just pick the first and go there.
                     _, target_node = free_rail_neighbours[0]
-                    all_paths = factory.get_unobstructed_paths(shuttle, target_node)
+                    all_paths = factory.get_unobstructed_paths(rail_table.node, target_node)
                     new_path = all_paths[0]
                     move_table_along_path(new_path, factory)
                 else:
+                    table_target = None
                     for _, non_rail_node in all_rail_neighbours:
                         free_adjacent_neighbours = [k for k, v in non_rail_node.neighbours.items()
                                                     if v and not v.has_table()]
@@ -71,18 +69,19 @@ def move_table_along_path(path: List[Node], factory: Factory):
                             assert result is not [ActionResult.INVALID, ActionResult.COLLISION]
                             factory.add_move(factory.tables.index(this_table), action, result)
 
-                        shuttle_target = non_rail_node
+                        table_target = non_rail_node
 
-                    rail_paths = factory.get_unobstructed_paths(shuttle, shuttle_target)
-                    if rail_paths:
-                        rail_path = rail_paths[0]
-                        move_table_along_path(rail_path, factory)
+                    if table_target:
+                        rail_paths = factory.get_unobstructed_paths(rail_table, table_target)
+                        if rail_paths:
+                            rail_path = rail_paths[0]
+                            move_table_along_path(rail_path, factory)
+                        else:
+                            raise Exception("Could not move obstacles away for table to enter rail.")
                     else:
-                        raise Exception("Could not move obstacles away for table to enter rail.")
+                        raise Exception("No candidate found for obstructing table to move to.")
 
-            assert len([n for n in rail.nodes if n.has_table()]) <= 1, "At most one table on a rail"
-            assert len([n for n in rail.nodes if n.has_shuttle]) == 1, "Exactly one rail node is the shuttle"
-
+            assert rail.num_tables() <= 1, "At most one table on a rail"
 
         direction_list = [direction for direction, n in node.neighbours.items() if n == next_node]
         direction = Direction[direction_list[0]]
@@ -96,7 +95,8 @@ def move_table_along_path(path: List[Node], factory: Factory):
 
     return results
 
-class BaseTableController:
+
+class TableAndRailController:
 
     def __init__(self, factory: Factory, name=None):
         self.factory = factory
@@ -110,10 +110,6 @@ class BaseTableController:
         """
         start = table.node
         start.remove_table()
-        if start.is_rail and to.is_rail:
-            # assert start.has_shuttle, "To move along a rail, the table has to be on a shuttle"
-            start.has_shuttle = False
-            to.has_shuttle = True
 
         table.set_node(to)
         to.set_table(table)
@@ -146,70 +142,11 @@ class BaseTableController:
             elif neighbour.is_rail and not node.is_rail:  # node -> rail
                 # can we hop on the rail?
                 rail = self.factory.get_rail(node=neighbour)
+                assert rail.num_tables() <= 1, "A rail can have at most one table"
                 if rail.is_free():
-                    return self._move_to_rail(table, rail, neighbour)
+                    return self._move_table(table, neighbour)
                 else:
-                    # target shuttle is blocked with a table.
+                    # target is blocked with a table.
                     return ActionResult.INVALID
             else:  # Move table from a) node -> node, b) rail -> rail or c) rail -> node
                 return self._move_table(table, neighbour)
-
-
-class TableAndRailController(BaseTableController):
-    """TableAndRailController controls behaviour of a single `Table` in a `Factory`
-    and its adjacent `Rail`s. If the agent wants to move to an available rail, it can
-    actively order the respective rail shuttle."""
-
-    def __init__(self, factory: Factory, name: str = None):
-        super(TableAndRailController, self).__init__(factory, name)
-
-    def _move_to_rail(self, table: Table, rail: Rail, neighbour: Node):
-        rail.order_shuttle(neighbour)
-        return self._move_table(table, neighbour)
-
-
-class TableController(BaseTableController):
-    """TableController controls behaviour of a single `Table` in a `Factory`.
-    The table can only enter a rail, if the shuttle is already right next
-    to it (and empty)."""
-
-    def __init__(self, factory: Factory, name: str = None):
-        super(TableController, self).__init__(factory, name)
-
-    def _move_to_rail(self, table: Table, rail: Rail, neighbour: Node):
-        if neighbour.has_shuttle:
-            return self._move_table(table, neighbour)
-        # shuttle not in position.
-        return ActionResult.INVALID
-
-
-class RailController:
-    """RailController only controls the shuttle on its `Rail`, no tables.
-    """
-
-    def __init__(self, factory: Factory, name: str = None):
-        self.factory = factory
-        self.name = name
-
-    @staticmethod
-    def take_action(rail: Rail, action: Action) -> ActionResult:
-        node = rail.shuttle_node()
-        if action.value == 4:
-            return ActionResult.NONE
-        direction = Direction(action.value)
-        has_neighbour = node.has_neighbour(direction)
-        if not has_neighbour:
-            return ActionResult.INVALID
-        else:
-            neighbour = node.get_neighbour(direction)
-            if neighbour in rail.nodes:
-                node.has_shuttle = False
-                neighbour.has_shuttle = True
-                if node.has_table():
-                    table = node.table
-                    table.set_node(neighbour)
-                    assert not node.has_table()
-                    neighbour.set_table(table)
-                return ActionResult.MOVED
-            else:
-                return ActionResult.INVALID

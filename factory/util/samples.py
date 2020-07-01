@@ -99,18 +99,18 @@ def get_default_factory(random_seed=None, num_tables=8, num_cores=3, num_phases=
              node_15_a, node_15_b, node_16_a, node_16_b, node_17_a, node_17_b, node_18, node_19,
              node_20]
 
-    rail_01 = Rail(nodes=[node_01_a, node_01_b, node_01_c], shuttle=node_01_b)
-    rail_16 = Rail(nodes=[node_16_a, node_16_b], shuttle=node_16_a)
-    rail_14 = Rail(nodes=[node_14_a, node_14_b, node_14_c], shuttle=node_14_a)
-    rail_15 = Rail(nodes=[node_15_a, node_15_b], shuttle=node_15_a)
-    rail_17 = Rail(nodes=[node_17_a, node_17_b], shuttle=node_17_a)
-    rail_03 = Rail(nodes=[node_03_a, node_03_b, node_03_c], shuttle=node_03_a)
-    rail_04 = Rail(nodes=[node_04_a, node_04_b], shuttle=node_04_a)
-    rail_07 = Rail(nodes=[node_07_a, node_07_b, node_07_c], shuttle=node_07_a)
+    rail_01 = Rail(nodes=[node_01_a, node_01_b, node_01_c])
+    rail_16 = Rail(nodes=[node_16_a, node_16_b])
+    rail_14 = Rail(nodes=[node_14_a, node_14_b, node_14_c])
+    rail_15 = Rail(nodes=[node_15_a, node_15_b])
+    rail_17 = Rail(nodes=[node_17_a, node_17_b])
+    rail_03 = Rail(nodes=[node_03_a, node_03_b, node_03_c])
+    rail_04 = Rail(nodes=[node_04_a, node_04_b])
+    rail_07 = Rail(nodes=[node_07_a, node_07_b, node_07_c])
 
     rails = [rail_01, rail_03, rail_04, rail_07, rail_14, rail_15, rail_16, rail_17]
 
-    tables = create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases)
+    tables = create_random_tables_and_cores(nodes, rails, num_tables, num_cores, num_phases)
 
     return Factory(nodes, rails, tables, max_num_steps, "DefaultFactory")
 
@@ -162,26 +162,29 @@ def get_small_default_factory(random_seed=None, num_tables=4, num_cores=2, num_p
     nodes = [node_3_a, node_3_b, node_4, node_5_a, node_5_b, node_5_c, node_6,
              node_7, node_1_a, node_1_b, node_1_c, node_2_a, node_2_b]
 
-    rail_1 = Rail(nodes=[node_1_a, node_1_b, node_1_c], shuttle=node_1_a)
-    rail_2 = Rail(nodes=[node_2_a, node_2_b], shuttle=node_2_a)
-    rail_3 = Rail(nodes=[node_3_a, node_3_b], shuttle=node_3_a)
-    rail_4 = Rail(nodes=[node_5_a, node_5_b, node_5_c], shuttle=node_5_a)
+    rail_1 = Rail(nodes=[node_1_a, node_1_b, node_1_c])
+    rail_2 = Rail(nodes=[node_2_a, node_2_b])
+    rail_3 = Rail(nodes=[node_3_a, node_3_b])
+    rail_4 = Rail(nodes=[node_5_a, node_5_b, node_5_c])
     rails = [rail_1, rail_2, rail_3, rail_4]
 
-    tables = create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases)
+    tables = create_random_tables_and_cores(nodes, rails, num_tables, num_cores, num_phases)
 
     return Factory(nodes, rails, tables, max_num_steps, "SmallDefaultFactory")
 
 
-def create_random_tables_and_cores(nodes, num_tables, num_cores, num_phases):
-    # tables go on nodes with shuttles
-    shuttle_nodes = [n for n in nodes if n.has_shuttle]
+def create_random_tables_and_cores(nodes, rails, num_tables, num_cores, num_phases):
+    non_rail_nodes = [n for n in nodes if not n.is_rail]
+    for rail in rails:
+        # Add precisely one spot on each rail that a table could be placed on
+        non_rail_nodes.append(random.choice(rail.nodes))
+
     tables = []
-    table_indices = np.random.choice(range(len(shuttle_nodes)), num_tables, replace=False)
+    table_indices = np.random.choice(range(len(non_rail_nodes)), num_tables, replace=False)
     for i in range(num_tables):
         # Randomly select a node for each table.
-        table_idx = random.randint(0, len(shuttle_nodes))
-        tables.append(Table(shuttle_nodes[table_indices[i]], name=f"table_{i}"))
+        table_idx = random.randint(0, len(non_rail_nodes))
+        tables.append(Table(non_rail_nodes[table_indices[i]], name=f"table_{i}"))
 
     # Core targets go on immobile nodes
     fixed_nodes = [n for n in nodes if not n.is_rail]

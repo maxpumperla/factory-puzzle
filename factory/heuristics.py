@@ -104,7 +104,8 @@ def solve_factory(factory: Factory):
 
                         # First move away all obstructing tables...
                         for solution in solutions:
-                            move_table_along_path(solution, factory)
+                            if solution[0].has_table():
+                                move_table_along_path(solution, factory)
 
                         # ... then move the table to its target, if possible
                         is_path_free_now = len([n for n in path[1:] if n.has_table()]) == 0

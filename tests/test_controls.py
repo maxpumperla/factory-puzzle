@@ -17,7 +17,7 @@ def test_table_controller():
     node_c.add_neighbour(target, Direction.right)
     nodes = [start, node_a, node_b, node_c, target, collision]
 
-    rail = Rail(nodes=[node_a, node_b, node_c], shuttle=node_b)
+    rail = Rail(nodes=[node_a, node_b, node_c])
     rails = [rail]
 
     table = Table(start)
@@ -48,7 +48,6 @@ def test_table_controller():
     # Move table to node_a by first ordering a shuttle from node_b
     res = controller.do_action(table, Action.right)
     assert table.node == node_a
-    assert node_a.has_shuttle
     assert res == ActionResult.MOVED
 
     # Move table to node_b

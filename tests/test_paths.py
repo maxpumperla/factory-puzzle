@@ -47,9 +47,9 @@ def test_get_paths_with_distances():
 
     paths = [pad[0] for pad in paths_and_distances]
     tables_on_path = [sum([n.has_table()for n in path]) for path in paths]
-    assert tables_on_path == [1, 2, 2]
+    assert tables_on_path == [1, 3, 3]
 
-    assert [pad[1] for pad in paths_and_distances] == [4 * 1 + 1 * factor, 5 * 1 + 2 * factor , 6 * 1 + 2 * factor]
+    assert [pad[1] for pad in paths_and_distances] == [4 * 1 + 1 * factor, 4 * 1 + 3 * factor , 5 * 1 + 3 * factor]
 
     shortest = get_shortest_weighted_path(a, b, factory, factor)
     assert shortest[1] is 4 * 1 + 1 * factor
@@ -80,10 +80,10 @@ def test_move_along_path():
     factory = get_small_default_factory(num_tables=1, num_cores=1)
 
     nodes = factory.nodes
-    node = nodes[7]  # pt7
     target = nodes[0]  # pt3_a
 
-    assert node.has_table()
+    table = factory.tables[0]
+    node = table.node
     assert not target.has_table()
 
     paths = factory.get_paths(node, target)

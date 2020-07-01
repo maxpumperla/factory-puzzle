@@ -63,20 +63,17 @@ class Node:
     a standalone, static node. Nodes can host a single Table.
     """
     def __init__(self, name: Optional[str] = None, is_rail: bool = False,
-                 has_shuttle: bool = True,
                  coordinates: Optional[Tuple[int, int]] = None):
         self.is_rail = is_rail
         self.name = name
         self.coordinates = coordinates
         self.neighbours = {d: None for d in Direction.get_all()}
         self.table: Optional[Table] = None
-        self.has_shuttle: bool = has_shuttle
 
     def has_table(self) -> bool:
         return self.table is not None
 
     def set_table(self, table: Table) -> None:
-        assert self.has_shuttle, "Can't put a table on a rail without shuttle"
         assert not self.has_table(), "Can't set another Table, remove the existing first."
         self.table = table
 
@@ -102,36 +99,28 @@ class Node:
 
 class Rail:
     """Rails consist of sequentially connected Nodes,
-    exactly one of which carries a shuttle."""
-    def __init__(self, nodes: List[Node], shuttle: Node):
-        assert shuttle in nodes, "Shuttle must be on this rail"
+    only one of which can carry a Table."""
+    def __init__(self, nodes: List[Node]):
         for i in range(len(nodes)-1):
             assert nodes[i].connected_to(nodes[i+1])
         self.nodes = nodes
-        self.shuttle = shuttle
-        self.reset_shuttle()
 
-    def reset_shuttle(self):
-        for node in self.nodes:
-            node.has_shuttle = False
-        self.shuttle.has_shuttle = True
+    def get_table_node(self):
+        num_tables = self.num_tables()
+        assert num_tables <= 1, "Can have at most one table on a rail"
+        if num_tables is 0:
+            return None
+        return [n for n in self.nodes if n.has_table()][0]
 
+    def num_tables(self):
+        return len([n for n in self.nodes if n.has_table()])
 
-    def shuttle_node(self) -> Node:
-        return self.shuttle
+    def has_table(self):
+        return self.num_tables() == 1
     
     def is_free(self) -> bool:
-        return not self.shuttle.has_table()
+        return not self.has_table()
 
-    def order_shuttle(self, to: Node) -> None:
-        """Move the rail shuttle to a target node on this rail."""
-        num_shuttles = sum([r.has_shuttle for r in self.nodes])
-        # assert num_shuttles == 1, num_shuttles
-        assert self.is_free(), "Can't order shuttle with a table on top"
-        assert to in self.nodes, "Destination must be on this rail"
-
-        self.shuttle = to
-        self.reset_shuttle()
 
 
 class Phase(enum.IntEnum):
