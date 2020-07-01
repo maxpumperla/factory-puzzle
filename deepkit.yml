@@ -7,8 +7,8 @@ config:
 
   # Factory settings
   layout: small  # either "big" or "small"
-  num_tables: 3
-  num_cores: 2
+  num_tables: 1
+  num_cores: 1
   num_phases: 1
   random_init: true  # if random initialization is False, the factory will reset to the same state after each episode.
   # seed: 1337  # Optional random seed to have full control over initial factory state.
@@ -20,7 +20,7 @@ config:
   experiment_list: my_experiment
 
   # RL-specific configuration
-  env: MultiAgentFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
+  env: RoundRobinFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
   max_num_steps: 10000 # NOTE: need to set this high enough for the big factory
   masking: true  # whether to use action masking
   algorithm: PPO  # Choose from PPO, DQN, MARWIL
@@ -42,20 +42,20 @@ config:
   obs_agent_free_neighbour: true
 
   ## One-hot representation obs
-  obs_agent_id_one_hot: false
-  obs_agent_core_target_one_hot: false
+  obs_agent_id_one_hot: true
+  obs_agent_core_target_one_hot: true
   obs_all_tables_one_hot: true
   obs_all_cores_one_hot: false
 
   # Reward selection
   rew_collisions:
-    value: false
+    value: true
     weight: 1
   rew_found_target:
-    value: false
+    value: true
     weight: 30
   rew_avoid_cores:
-    value: false
+    value: true
     weight: 1
   rew_punish_slow_tables:
     value: false

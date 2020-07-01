@@ -118,10 +118,10 @@ class Rail:
         return len([n for n in self.nodes if n.has_table()])
 
     def has_table(self):
-        return self.num_tables() is 1
+        return self.num_tables() == 1
     
     def is_free(self) -> bool:
-        return self.num_tables() is 0
+        return self.num_tables() == 0
 
 
 

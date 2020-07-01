@@ -24,6 +24,65 @@ def do_action(table: Table, factory: Factory, action: Action):
     return TableAndRailController(factory).do_action(table, action)
 
 
+class TableAndRailController:
+
+    def __init__(self, factory: Factory, name=None):
+        self.factory = factory
+        self.name = name
+
+    @staticmethod
+    def _move_table(table: Table, to: Node) -> ActionResult:
+        """Move table to an adjacent node. Cores are moved automatically.
+        If we move on a rail, also move the shuttle. If the destination
+        completes a phase, mark it as such.
+        """
+        start = table.node
+
+        # Remove table from "start" node
+        start.remove_table()
+
+        # Put table on "to" node
+        table.set_node(to)
+        to.set_table(table)
+
+        if table.get_target() is to:
+            table.phase_completed()
+            table.is_at_target = True
+        else:
+            table.is_at_target = False
+
+        return ActionResult.MOVED
+
+    def _move_to_rail(self, table: Table, rail: Rail, neighbour: Node) -> ActionResult:
+        raise NotImplementedError
+
+    def do_action(self, table: Table, action: Action) -> ActionResult:
+        """Attempt to carry out a specified action.
+        """
+        table.is_at_target = False  # Reset target
+        if action.value == 4:
+            return ActionResult.NONE
+        direction = Direction(action.value)
+        has_neighbour = table.node.has_neighbour(direction)
+        if not has_neighbour:
+            return ActionResult.INVALID
+        else:
+            neighbour = table.node.get_neighbour(direction)
+            if neighbour.has_table():
+                return ActionResult.COLLISION
+            elif neighbour.is_rail:  # node -> rail or rail -> rail
+                # can we hop on the rail?
+                rail = self.factory.get_rail(node=neighbour)
+                assert rail.num_tables() <= 1, "A rail can have at most one table"
+                if rail.is_free() or table.node in rail.nodes:
+                    return self._move_table(table, neighbour)
+                else:
+                    # target is blocked with a table.
+                    return ActionResult.INVALID
+            else:  # Move table from a) node -> node or b) rail -> node
+                return self._move_table(table, neighbour)
+
+
 def move_table_along_path(path: List[Node], factory: Factory):
     if not path[0].has_table():
         raise ValueError("First element of the provided path has to have a table")
@@ -33,7 +92,9 @@ def move_table_along_path(path: List[Node], factory: Factory):
     for i in range(len(path) - 1):
         node = path[i]
         table = node.table
-        assert table, "No table to move along this path"
+        if not table:
+            break
+        # assert table, "No table to move along this path"
         next_node = path[i+1]
 
         if not node.is_rail and next_node.is_rail:
@@ -72,7 +133,7 @@ def move_table_along_path(path: List[Node], factory: Factory):
                         table_target = non_rail_node
 
                     if table_target:
-                        rail_paths = factory.get_unobstructed_paths(rail_table, table_target)
+                        rail_paths = factory.get_unobstructed_paths(rail_table.node, table_target)
                         if rail_paths:
                             rail_path = rail_paths[0]
                             move_table_along_path(rail_path, factory)
@@ -94,60 +155,3 @@ def move_table_along_path(path: List[Node], factory: Factory):
         results.append(result)
 
     return results
-
-
-class TableAndRailController:
-
-    def __init__(self, factory: Factory, name=None):
-        self.factory = factory
-        self.name = name
-
-    @staticmethod
-    def _move_table(table: Table, to: Node) -> ActionResult:
-        """Move table to an adjacent node. Cores are moved automatically.
-        If we move on a rail, also move the shuttle. If the destination
-        completes a phase, mark it as such.
-        """
-        start = table.node
-        start.remove_table()
-
-        table.set_node(to)
-        to.set_table(table)
-
-        if table.get_target() is to:
-            table.phase_completed()
-            table.is_at_target = True
-        else:
-            table.is_at_target = False
-        return ActionResult.MOVED
-
-    def _move_to_rail(self, table: Table, rail: Rail, neighbour: Node) -> ActionResult:
-        raise NotImplementedError
-
-    def do_action(self, table: Table, action: Action) -> ActionResult:
-        """Attempt to carry out a specified action.
-        """
-        table.is_at_target = False  # Reset target
-        node = table.node
-        if action.value == 4:
-            return ActionResult.NONE
-        direction = Direction(action.value)
-        has_neighbour = node.has_neighbour(direction)
-        if not has_neighbour:
-            return ActionResult.INVALID
-        else:
-            neighbour = node.get_neighbour(direction)
-            if neighbour.has_table():
-                return ActionResult.COLLISION
-            elif neighbour.is_rail and not node.is_rail:  # node -> rail
-                # can we hop on the rail?
-                rail = self.factory.get_rail(node=neighbour)
-                # TODO
-                # assert rail.num_tables() <= 1, "A rail can have at most one table"
-                if rail.is_free():
-                    return self._move_table(table, neighbour)
-                else:
-                    # target is blocked with a table.
-                    return ActionResult.INVALID
-            else:  # Move table from a) node -> node, b) rail -> rail or c) rail -> node
-                return self._move_table(table, neighbour)

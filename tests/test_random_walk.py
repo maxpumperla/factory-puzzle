@@ -4,6 +4,19 @@ import time
 
 DEBUG = False
 
+def test_random_completion():
+    factory = get_small_default_factory(random_seed=1337, num_phases=1, num_cores=1, num_tables=1)
+    agent = RandomAgent(factory)
+    table = factory.tables[0]
+    for i in range(100):
+        if DEBUG:
+            time.sleep(0.12)
+            print_factory(factory)
+        action = agent.compute_action()
+        agent.take_action(table, action)
+
+    assert factory.is_solved()
+
 
 def test_random_walk():
     factory = get_small_default_factory(1337)
@@ -20,7 +33,7 @@ def test_random_walk():
             print(">>> Result: ", agent.take_action(table, action))
 
     factory = get_default_factory(123)
-    time.sleep(2)
+    # time.sleep(2)
     multi_agent = [RandomAgent(factory) for t in factory.tables]
     num_agents = len(multi_agent)
     for i in range(30):

@@ -86,12 +86,10 @@ def can_move_in_direction(node: Node, direction: Direction, factory: Factory):
     has_direction = node.has_neighbour(direction)
     is_occupied = True
     if has_direction:
-        node: Node = node.get_neighbour(direction)
-        if node.is_rail:
-            rail = factory.get_rail(node)
-            # TODO: this breaks down "everything"
-            # is_occupied = rail.has_table()
-            is_occupied = node.has_table()
+        neighbour: Node = node.get_neighbour(direction)
+        if neighbour.is_rail:
+            rail = factory.get_rail(neighbour)
+            is_occupied = rail.has_table() and not node in rail.nodes
         else:
             is_occupied = node.has_table()
     return not is_occupied
