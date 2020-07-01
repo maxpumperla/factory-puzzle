@@ -7,8 +7,8 @@ config:
 
   # Factory settings
   layout: big  # either "big" or "small"
-  num_tables: 8
-  num_cores: 4
+  num_tables: 5
+  num_cores: 3
   num_phases: 1
   random_init: True  # if random initialization is False, the factory will reset to the same state after each episode.
   # seed: 1337  # Optional random seed to have full control over initial factory state.
@@ -28,7 +28,7 @@ config:
   offline_data_ratio: 0.5
   num_samples: 4  # Ray rllib's "num_samples" extracted for convenience
   multi_policy: False  # Using multiple policies or not. This only works for "MultiAgentEnv"
-
+  fcnet_hiddens: [512, 512]  #[1024, 2048, 1024]
 
   # Observation selection
   ## Agent & core obs
