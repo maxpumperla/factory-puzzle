@@ -101,6 +101,8 @@ class Rail:
     """Rails consist of sequentially connected Nodes,
     only one of which can carry a Table."""
     def __init__(self, nodes: List[Node]):
+        for node in nodes:
+            node.is_rail = True
         for i in range(len(nodes)-1):
             assert nodes[i].connected_to(nodes[i+1])
         self.nodes = nodes

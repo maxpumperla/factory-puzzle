@@ -142,7 +142,8 @@ class TableAndRailController:
             elif neighbour.is_rail and not node.is_rail:  # node -> rail
                 # can we hop on the rail?
                 rail = self.factory.get_rail(node=neighbour)
-                assert rail.num_tables() <= 1, "A rail can have at most one table"
+                # TODO
+                # assert rail.num_tables() <= 1, "A rail can have at most one table"
                 if rail.is_free():
                     return self._move_table(table, neighbour)
                 else:

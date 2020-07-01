@@ -1,6 +1,6 @@
 from factory.models import Node, Direction, Table
 from factory.simulation import Factory
-from factory.config import get_observation_names, get_reward_names
+from factory.config import get_observation_names, get_reward_names_and_weights
 import numpy as np
 from typing import List
 import importlib
@@ -48,19 +48,24 @@ def get_reward(agent_id: int, factory: Factory) -> float:
     # high incentive for reaching a target, quickly
     time_taken = steps / float(max_num_steps)
     if agent.is_at_target:
-        rewards["rew_found_target"] = 30.0 * (1.0 - time_taken) ** 2
+        rewards["rew_found_target"] = (1.0 - time_taken) ** 2
 
     # punish if too slow
     if steps == max_num_steps:
-        rewards["rew_punish_slow_tables"] = -50
+        rewards["rew_punish_slow_tables"] = - 1
 
     # If an agent without core is close to one with core, let it shy away
     if not agent.has_core():
         rewards["rew_avoid_cores"]  = -1.0 * has_core_neighbour(agent.node, factory)
 
     # only configured rewards get picked up
-    rewards_to_use = get_reward_names()
-    return sum([v for k,v in rewards.items() if k in rewards_to_use])
+    rewards_to_use = get_reward_names_and_weights()
+
+    reward = 0
+    for reward_name, weight in rewards_to_use.items():
+        reward += rewards.get(reward_name, 0) * weight
+
+    return reward
 
 
 def one_hot_encode(total: int, positions: List[int]):

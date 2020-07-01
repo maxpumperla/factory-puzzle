@@ -19,7 +19,7 @@ import numpy as np
 
 
 __all__ = ["FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv", "register_env_from_config",
-           "get_observation_space", "get_action_space"]
+           "get_observation_space", "get_action_space", "add_masking"]
 
 
 def register_env_from_config():
