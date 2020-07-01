@@ -107,12 +107,15 @@ class Rail:
         assert shuttle in nodes, "Shuttle must be on this rail"
         for i in range(len(nodes)-1):
             assert nodes[i].connected_to(nodes[i+1])
-        for node in nodes:
-            node.has_shuttle = False
-        shuttle.has_shuttle = True
-
         self.nodes = nodes
         self.shuttle = shuttle
+        self.reset_shuttle()
+
+    def reset_shuttle(self):
+        for node in self.nodes:
+            node.has_shuttle = False
+        self.shuttle.has_shuttle = True
+
 
     def shuttle_node(self) -> Node:
         return self.shuttle
@@ -122,12 +125,13 @@ class Rail:
 
     def order_shuttle(self, to: Node) -> None:
         """Move the rail shuttle to a target node on this rail."""
+        num_shuttles = sum([r.has_shuttle for r in self.nodes])
+        # assert num_shuttles == 1, num_shuttles
         assert self.is_free(), "Can't order shuttle with a table on top"
         assert to in self.nodes, "Destination must be on this rail"
-        
-        self.shuttle.has_shuttle = False
-        to.has_shuttle = True
+
         self.shuttle = to
+        self.reset_shuttle()
 
 
 class Phase(enum.IntEnum):

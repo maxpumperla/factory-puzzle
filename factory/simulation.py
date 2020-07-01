@@ -25,6 +25,7 @@ def get_paths_distances_obstructions(a: Node, b: Node, factory: F, obstruction_f
     for path in paths:
         num_tables_on_path = get_num_tables_on_path(path)
         tables_on_path = [n.table for n in path[1:] if n.has_table()]
+        # tables_on_path.reverse() # rationale: move tables away from last to first
         obstructions.append(tables_on_path)
         table_numbers.append(num_tables_on_path)
         distances.append(len(path))
@@ -39,7 +40,9 @@ def get_num_tables_on_path(path: List[Node]) -> int:
 
 
 def can_move_away(table: Table, path: List[Node], factory: F):
-    """Determine if a table on a path can move to a factory node not on that path."""
+    """Determine if a table on a path can move to a factory node not on that path.
+    If it can, return all possible paths to do so
+    """
     allowed_target_nodes = [n for n in factory.nodes if n not in path]
     table_node = table.node
     if table_node not in path:
@@ -54,8 +57,7 @@ def can_move_away(table: Table, path: List[Node], factory: F):
         return False, None
 
     sorted_solutions = sorted(unobstructed_paths, key=lambda p: p[1])
-    shortest_path_to_move_away = sorted_solutions[0][0]
-    return True, shortest_path_to_move_away
+    return True, [p[0] for p in sorted_solutions]  # only return actual paths
 
 
 
