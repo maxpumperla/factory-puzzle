@@ -47,15 +47,16 @@ def add_masking(self, observations):
 
 def update_action_mask(env, agent=None):
     current_agent = agent if agent else env.current_agent
-    agent_node = env.factory.tables[current_agent].node
+    agent_table = env.factory.tables[current_agent]
+    agent_node = agent_table.node
 
     return np.array([
-        # Mask out illegal moves and collisions
+        # Mask out illegal moves and collisions (no auto-regression, collisions still possible in MultiEnv)
         can_move_in_direction(agent_node, Direction.up, env.factory),
         can_move_in_direction(agent_node, Direction.right, env.factory),
         can_move_in_direction(agent_node, Direction.down, env.factory),
         can_move_in_direction(agent_node, Direction.left, env.factory),
-        1.0,  # Not moving is always allowed
+        not agent_table.has_core(),  # Allow not moving only if table has no core anymore
     ])
 
 

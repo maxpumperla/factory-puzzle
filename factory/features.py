@@ -48,7 +48,8 @@ def get_reward(agent_id: int, factory: Factory) -> float:
     # high incentive for reaching a target, quickly
     time_taken = steps / float(max_num_steps)
     if agent.is_at_target:
-        rewards["rew_found_target"] = (1.0 - time_taken) ** 2
+        rewards["rew_found_target"] = (1.0 - time_taken)
+        rewards["rew_found_target_squared"] = (1.0 - time_taken) ** 2
 
     # punish if too slow
     if steps == max_num_steps:
@@ -92,7 +93,6 @@ def can_move_in_direction(node: Node, direction: Direction, factory: Factory):
             is_free = neighbour_rail.is_free() or node in neighbour_rail.nodes
         else:
             is_free = not neighbour.has_table()
-    # return has_direction
     return is_free
 
 

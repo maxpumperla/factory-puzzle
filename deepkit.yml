@@ -17,7 +17,7 @@ config:
   local_mode: false  # if "True", will start ray as single process for easier debugging in your IDE
   deepkit_logging: true  #
   deepkit_account: deepkit # or localhost
-  experiment_list: my_experiment
+  experiment_list: disallow_no_move
 
   # RL-specific configuration
   env: MultiAgentFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
@@ -53,7 +53,10 @@ config:
     weight: 1
   rew_found_target:
     value: true
-    weight: 30
+    weight: 100
+  rew_found_target_squared:
+    value: false
+    weight: 100
   rew_avoid_cores:
     value: true
     weight: 1
