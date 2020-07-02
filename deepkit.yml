@@ -59,7 +59,7 @@ config:
     weight: 100
   rew_avoid_cores:
     value: true
-    weight: 1
+    weight: 5
   rew_punish_slow_tables:
     value: false
     weight: 50
