@@ -7,85 +7,95 @@ config:
 
   # Factory settings
   layout: big  # either "big" or "small"
-  num_tables: 8
-  num_cores: 4
+  num_tables: 12
+  num_cores: 6
   num_phases: 1
-  random_init: True  # if random initialization is False, the factory will reset to the same state after each episode.
+  random_init: true  # if random initialization is False, the factory will reset to the same state after each episode.
   # seed: 1337  # Optional random seed to have full control over initial factory state.
 
   # Logging & Tracking
-  local_mode: False  # if "True", will start ray as single process for easier debugging in your IDE
-  deepkit_logging: True  #
+  local_mode: false  # if "True", will start ray as single process for easier debugging in your IDE
+  deepkit_logging: true  #
   deepkit_account: deepkit # or localhost
-  experiment_list: my_experiment
+  experiment_list: full_12_run_round_robin
 
   # RL-specific configuration
-  env: MultiAgentFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
-  max_num_steps: 5000 # NOTE: need to set this high enough for the big factory
-  masking: True  # whether to use action masking
+  env: RoundRobinFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
+  max_num_steps: 1000 # NOTE: need to set this high enough for the big factory
+  masking: true  # whether to use action masking
   algorithm: PPO  # Choose from PPO, DQN, MARWIL
-  use_offline_data: False  # Use previously generated offline data (don't use for now, experimental)
+  use_offline_data: false  # Use previously generated offline data (don't use for now, experimental)
   offline_data_ratio: 0.5
   num_samples: 4  # Ray rllib's "num_samples" extracted for convenience
-  multi_policy: False  # Using multiple policies or not. This only works for "MultiAgentEnv"
-
+  multi_policy: false  # Using multiple policies or not. This only works for "MultiAgentEnv"
+  fcnet_hiddens: [1024, 1024]  # [512, 512]
 
   # Observation selection
   ## Agent & core obs
-  obs_agent_id: False
-  obs_agent_coordinates: False
-  obs_agent_has_core: False
-  obs_agent_core_target_coordinates: False
+  obs_agent_id: false
+  obs_agent_coordinates: true
+  obs_agent_has_core: true
+  obs_agent_core_target_coordinates: true
+  obs_all_non_agent_table_coordinates: true
 
-  ## Neighbour obs
-  obs_agent_has_neighbour: False
-  obs_agent_free_neighbour: True
+  ## Neighbour obs (unnecessary with action masking)
+  obs_agent_has_neighbour: false
+  obs_agent_free_neighbour: false
 
   ## One-hot representation obs
-  obs_agent_id_one_hot: True
-  obs_agent_core_target_one_hot: True
-  obs_all_tables_one_hot: True
-  obs_all_cores_one_hot: False
+  obs_agent_id_one_hot: false
+  obs_agent_core_target_one_hot: false
+  obs_all_tables_one_hot: false
+  obs_all_cores_one_hot: false
 
   # Reward selection
-  rew_collisions: True
-  rew_found_target: True
-  rew_avoid_cores: True
-  rew_punish_slow_tables: False
+  rew_collisions:
+    value: True
+    weight: 0.001
+  rew_found_target:
+    value: true
+    weight: 10
+  rew_found_target_squared:
+    value: false
+    weight: 10
+  rew_avoid_cores:
+    value: false
+    weight: 5
+  rew_punish_slow_tables:
+    value: true
+    weight: 100
 
-
-# Note: only touch anything below this line if you're certain you know what you're doing :P
 image: python:3.7
 
 build:
-  - ADD requirements.txt
-  - pip install -r requirements.txt
-  - ADD factory/
-  - ADD setup.py
-  - python setup.py install
+- ADD requirements.txt
+- pip install -r requirements.txt
+- ADD factory/
+- ADD setup.py
+- python setup.py install
 
 #env:
 #  - PYTHONPATH=/job
 
 output:
-  - DQN
-  - PPO
+- DQN
+- PPO
 
 ignore:
-  - DQN
-  - PPO
-  - models
-  - tests
-  - assets
-  - venv
-  - .pytest_cache
+- DQN
+- PPO
+- models
+- tests
+- assets
+- venv
+- .pytest_cache
 
 title: Factory solver
 
 list: my_experiment
 
 labels:
-  - rllib
-  - tensorflow
+- rllib
+- tensorflow
 
 command: python examples/save_trainer.py

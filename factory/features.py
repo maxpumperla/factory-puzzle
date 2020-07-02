@@ -1,6 +1,6 @@
 from factory.models import Node, Direction, Table
 from factory.simulation import Factory
-from factory.config import get_observation_names, get_reward_names
+from factory.config import get_observation_names, get_reward_names_and_weights
 import numpy as np
 from typing import List
 import importlib
@@ -48,19 +48,27 @@ def get_reward(agent_id: int, factory: Factory) -> float:
     # high incentive for reaching a target, quickly
     time_taken = steps / float(max_num_steps)
     if agent.is_at_target:
-        rewards["rew_found_target"] = 30.0 * (1.0 - time_taken) ** 2
+        rewards["rew_found_target"] = (1.0 - time_taken)
+        rewards["rew_found_target_squared"] = (1.0 - time_taken) ** 2
 
     # punish if too slow
     if steps == max_num_steps:
-        rewards["rew_punish_slow_tables"] = -50
+        num_cores_left = len([t for t in factory.tables if t.has_core()])
+        rewards["rew_punish_slow_tables"] = - 1 * num_cores_left
 
     # If an agent without core is close to one with core, let it shy away
     if not agent.has_core():
         rewards["rew_avoid_cores"]  = -1.0 * has_core_neighbour(agent.node, factory)
 
     # only configured rewards get picked up
-    rewards_to_use = get_reward_names()
-    return sum([v for k,v in rewards.items() if k in rewards_to_use])
+    rewards_to_use = get_reward_names_and_weights()
+
+    reward = 0
+    for reward_name, weight in rewards_to_use.items():
+        # multiply rewards by configured weight terms
+        reward += rewards.get(reward_name, 0) * weight
+
+    return reward
 
 
 def one_hot_encode(total: int, positions: List[int]):
@@ -79,15 +87,15 @@ def can_move_in_direction(node: Node, direction: Direction, factory: Factory):
     else 0 (a non-existing neighbour counts as occupied).
     """
     has_direction = node.has_neighbour(direction)
-    is_occupied = True
+    is_free = False
     if has_direction:
-        node: Node = node.get_neighbour(direction)
-        if node.is_rail:
-            rail = factory.get_rail(node)
-            is_occupied = rail.shuttle_node().has_table()
+        neighbour: Node = node.get_neighbour(direction)
+        if neighbour.is_rail:
+            neighbour_rail = factory.get_rail(neighbour)
+            is_free = neighbour_rail.is_free() or node in neighbour_rail.nodes
         else:
-            is_occupied = node.has_table()
-    return not is_occupied
+            is_free = not neighbour.has_table()
+    return is_free
 
 
 def has_core_neighbour(node: Node, factory: Factory):
@@ -111,6 +119,16 @@ def obs_agent_id(agent_id: int, factory: Factory) -> np.ndarray:
 def obs_agent_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
     agent: Table = factory.tables[agent_id]
     return np.asarray(list(agent.node.coordinates))
+
+
+def obs_all_non_agent_table_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
+    """encode all non-agent table coordinates"""
+    agent: Table = factory.tables[agent_id]
+    coordinates = []
+    for table in factory.tables:
+        if table is not agent:
+            coordinates += list(table.node.coordinates)
+    return np.asarray(coordinates)
 
 
 def obs_agent_has_neighbour(agent_id: int, factory: Factory) -> np.ndarray:

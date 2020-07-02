@@ -5,7 +5,7 @@ from factory.util import writer
 from factory.controls import do_action, Action, ActionResult
 from factory.environments import MultiAgentFactoryEnv
 from factory.models import Table, Node
-from factory.simulation import get_shortest_path_with_distance
+from factory.simulation import get_shortest_weighted_path
 
 import numpy as np
 from typing import List, Dict
@@ -32,7 +32,7 @@ class IDAStar:
 
     def get_cost_bound(self, source: Node, target: Node):
         # Get a lower bound on cost for a table to reach its target
-        shortest_path, distance = get_shortest_path_with_distance(source, target, self.factory, self.obstruction_factor)
+        shortest_path, distance = get_shortest_weighted_path(source, target, self.factory, self.obstruction_factor)
         return distance
 
     def find_path(self, root: Table):

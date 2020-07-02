@@ -20,6 +20,7 @@ def get_num_obs():
 
 num_obs = get_num_obs()
 num_actions = SIMULATION_CONFIG.get("actions")
+fcnet_hiddens = SIMULATION_CONFIG.get("fcnet_hiddens")
 
 class ActionMaskingTFModel(DistributionalQTFModel):
     """Custom TF Model that masks out illegal moves. Works for any
@@ -29,6 +30,8 @@ class ActionMaskingTFModel(DistributionalQTFModel):
     def __init__(self,obs_space, action_space, num_outputs,
                  model_config, name, **kw):
         super().__init__(obs_space, action_space, num_outputs, model_config, name, **kw)
+
+        model_config['fcnet_hiddens'] = fcnet_hiddens
 
         self.base_model = FullyConnectedNetwork(
             Box(low, high, shape=(num_obs,)), action_space, num_actions,

@@ -50,7 +50,7 @@ def default_scheduler():
 
 def default_model():
     model = models.MODEL_DEFAULTS.copy()
-    model['fcnet_hiddens'] = [512, 512]  # 256, 256
+    model['fcnet_hiddens'] = SIMULATION_CONFIG.get("fcnet_hiddens")
     return model
 
 

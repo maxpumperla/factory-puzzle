@@ -6,7 +6,7 @@ import pickle
 import numpy as np
 from factory.models import Table
 from factory.simulation import Factory
-from factory.controls import Action, ActionResult, BaseTableController, TableAndRailController
+from factory.controls import Action, ActionResult, TableAndRailController
 
 
 class Agent(ABC):
@@ -14,7 +14,7 @@ class Agent(ABC):
     state, an Agent selects an action, which a Controller can execute
     on their behalf."""
 
-    controller: BaseTableController
+    controller: TableAndRailController
     name: str
 
     def take_action(self, table: Table, action: Action) -> ActionResult:
