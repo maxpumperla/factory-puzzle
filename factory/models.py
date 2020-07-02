@@ -165,6 +165,7 @@ class ActionResult(enum.IntEnum):
     MOVED = 1,
     INVALID = 2
     COLLISION = 3
+    INVALID_RAIL_ENTERING = 4
 
     def reward(self):
         return 0 if self.value < 2 else -1

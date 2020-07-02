@@ -162,6 +162,9 @@ class Factory:
             #     PRINTER.pprint(core.table.node.coordinates)
             # for table in self.tables:
             #     PRINTER.pprint(table.has_core())
+            cores_left = len([t for t in self.tables if t.has_core()])
+            PRINTER.pprint("   >>> Number of cores left to deliver:")
+            PRINTER.pprint(cores_left)
             PRINTER.pprint("   >>> Move counter")
             PRINTER.pprint(dict(self.move_counter))
             PRINTER.pprint("   >>> Action counter")

@@ -50,13 +50,21 @@ def update_action_mask(env, agent=None):
     agent_table = env.factory.tables[current_agent]
     agent_node = agent_table.node
 
+    can_move_up = can_move_in_direction(agent_node, Direction.up, env.factory)
+    can_move_right = can_move_in_direction(agent_node, Direction.right, env.factory)
+    can_move_down = can_move_in_direction(agent_node, Direction.down, env.factory)
+    can_move_left = can_move_in_direction(agent_node, Direction.left, env.factory)
+
+    can_move_at_all = any([can_move_up, can_move_right, can_move_down, can_move_left])
+
     return np.array([
         # Mask out illegal moves and collisions (no auto-regression, collisions still possible in MultiEnv)
-        can_move_in_direction(agent_node, Direction.up, env.factory),
-        can_move_in_direction(agent_node, Direction.right, env.factory),
-        can_move_in_direction(agent_node, Direction.down, env.factory),
-        can_move_in_direction(agent_node, Direction.left, env.factory),
-        not agent_table.has_core(),  # Allow not moving only if table has no core anymore
+        can_move_up,
+        can_move_right,
+        can_move_down,
+        can_move_left,
+        not can_move_at_all, # Only allow not to move if no other move is valid
+        # not agent_table.has_core(),  # Allow not moving only if table has no core anymore
     ])
 
 

@@ -70,7 +70,7 @@ class TableAndRailController:
             neighbour = table.node.get_neighbour(direction)
             if neighbour.has_table():
                 return ActionResult.COLLISION
-            elif neighbour.is_rail:  # node -> rail or rail -> rail
+            if neighbour.is_rail:  # node -> rail or rail -> rail
                 # can we hop on the rail?
                 rail = self.factory.get_rail(node=neighbour)
                 assert rail.num_tables() <= 1, "A rail can have at most one table"
@@ -78,7 +78,7 @@ class TableAndRailController:
                     return self._move_table(table, neighbour)
                 else:
                     # target is blocked with a table.
-                    return ActionResult.INVALID
+                    return ActionResult.INVALID_RAIL_ENTERING
             else:  # Move table from a) node -> node or b) rail -> node
                 return self._move_table(table, neighbour)
 

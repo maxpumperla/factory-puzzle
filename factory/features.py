@@ -53,7 +53,8 @@ def get_reward(agent_id: int, factory: Factory) -> float:
 
     # punish if too slow
     if steps == max_num_steps:
-        rewards["rew_punish_slow_tables"] = - 1
+        num_cores_left = len([t for t in factory.tables if t.has_core()])
+        rewards["rew_punish_slow_tables"] = - 1 * num_cores_left
 
     # If an agent without core is close to one with core, let it shy away
     if not agent.has_core():
@@ -64,6 +65,7 @@ def get_reward(agent_id: int, factory: Factory) -> float:
 
     reward = 0
     for reward_name, weight in rewards_to_use.items():
+        # multiply rewards by configured weight terms
         reward += rewards.get(reward_name, 0) * weight
 
     return reward
@@ -117,6 +119,16 @@ def obs_agent_id(agent_id: int, factory: Factory) -> np.ndarray:
 def obs_agent_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
     agent: Table = factory.tables[agent_id]
     return np.asarray(list(agent.node.coordinates))
+
+
+def obs_all_non_agent_table_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
+    """encode all non-agent table coordinates"""
+    agent: Table = factory.tables[agent_id]
+    coordinates = []
+    for table in factory.tables:
+        if table is not agent:
+            coordinates += list(table.node.coordinates)
+    return np.asarray(coordinates)
 
 
 def obs_agent_has_neighbour(agent_id: int, factory: Factory) -> np.ndarray:
