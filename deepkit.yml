@@ -7,50 +7,52 @@ config:
 
   # Factory settings
   layout: big  # either "big" or "small"
-  num_tables: 12
-  num_cores: 6
+  num_tables: 8
+  num_cores: 4
   num_phases: 1
   random_init: true  # if random initialization is False, the factory will reset to the same state after each episode.
   # seed: 1337  # Optional random seed to have full control over initial factory state.
 
   # Logging & Tracking
-  local_mode: false  # if "True", will start ray as single process for easier debugging in your IDE
-  deepkit_logging: true  #
+  local_mode: false  # if "true", will start ray as single process for easier debugging in your IDE
+  deepkit_logging: true  # if "true", use deepkit for logging, otherwise just plain ray
   deepkit_account: deepkit # or localhost
   experiment_list: full_12_run_round_robin
 
   # RL-specific configuration
-  env: RoundRobinFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
-  max_num_steps: 1000 # NOTE: need to set this high enough for the big factory
-  masking: true  # whether to use action masking
+  env: MultiAgentFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv" and "TupleFactoryEnv"
+  max_num_steps: 1200 # NOTE: need to set this high enough for the big factory
+  masking: true  # whether to use action masking TODO: does not work with TupleFactoryEnv (ray issue?)
   algorithm: PPO  # Choose from PPO, DQN, MARWIL
   use_offline_data: false  # Use previously generated offline data (don't use for now, experimental)
   offline_data_ratio: 0.5
   num_samples: 4  # Ray rllib's "num_samples" extracted for convenience
   multi_policy: false  # Using multiple policies or not. This only works for "MultiAgentEnv"
-  fcnet_hiddens: [1024, 1024]  # [512, 512]
+  fcnet_hiddens: [1024, 1024, 512]  # [512, 512]
 
   # Observation selection
   ## Agent & core obs
   obs_agent_id: false
-  obs_agent_coordinates: true
-  obs_agent_has_core: true
-  obs_agent_core_target_coordinates: true
-  obs_all_non_agent_table_coordinates: true
+  obs_agent_coordinates: false
+  obs_agent_has_core: false
+  obs_agent_core_target_coordinates: false
+  obs_all_table_coordinates: false
 
   ## Neighbour obs (unnecessary with action masking)
   obs_agent_has_neighbour: false
   obs_agent_free_neighbour: false
 
-  ## One-hot representation obs
-  obs_agent_id_one_hot: false
-  obs_agent_core_target_one_hot: false
-  obs_all_tables_one_hot: false
-  obs_all_cores_one_hot: false
+  ## One-hot representation obs: current id and target, plus all tables, cores and targets
+  obs_agent_id_one_hot: true
+  obs_agent_core_target_one_hot: true
+
+  obs_all_tables_one_hot: true
+  obs_all_cores_one_hot: true
+  obs_all_targets_one_hot: true
 
   # Reward selection
   rew_collisions:
-    value: True
+    value: true
     weight: 0.001
   rew_found_target:
     value: true
@@ -58,12 +60,18 @@ config:
   rew_found_target_squared:
     value: false
     weight: 10
+  rew_blocking_target:
+    value: true
+    weight: 3
   rew_avoid_cores:
-    value: false
-    weight: 5
+    value: true
+    weight: 0.5
   rew_punish_slow_tables:
     value: true
     weight: 100
+  rew_tighten_max_steps:
+    value: true
+    weight: 1
 
 image: python:3.7
 

@@ -2,16 +2,19 @@ from factory.models import Node, Direction, Table
 from factory.simulation import Factory
 from factory.config import get_observation_names, get_reward_names_and_weights
 import numpy as np
-from typing import List
+from typing import List, Optional
 import importlib
 
 __all__ = ["get_observations", "get_reward", "get_done", "can_move_in_direction"]
 
 
-def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
+def get_observations(agent_id: Optional[int], factory: Factory) -> np.ndarray:
     """Get observation of one agent given the current factory state.
     We first determine the observations selected in the config file and
     then concatenate the results of the corresponding observation functions.
+
+    The names of the functions have to match the names in the config. That's
+    also how you "register" a new observation
     """
     obs_names = get_observation_names()
     obs_dict = {obs: getattr(importlib.import_module('factory.features'), obs)(agent_id, factory)
@@ -31,11 +34,24 @@ def get_done(agent_id: int, factory: Factory) -> bool:
     return not agent.has_core()
 
 
-def get_reward(agent_id: int, factory: Factory) -> float:
+def get_reward(agent_id: int, factory: Factory, episodes: int) -> float:
     """Get the reward for a single agent in its current state.
     Similar to observations, reward terms get configured in deepkit.yml.
     """
+
+    # only configured rewards get picked up
+    rewards_to_use = get_reward_names_and_weights()
+    reward_names = rewards_to_use.keys()
     rewards = {}
+
+    if "rew_tighten_max_steps" in reward_names:
+        # After 300 episodes we cut the allowed step length to 1/4th.
+        episode_discount = max(0.25, 1 - (episodes / 400.))
+        factory.max_num_steps = int(factory.initial_max_num_steps * episode_discount)
+        # We set this to 0, as this is just a mean to decrease the max step count over
+        # time. This leads to shorter episodes and is reflected in "rew_punish_slow_tables".
+        rewards["rew_tighten_max_steps"] = 0
+
     max_num_steps = factory.max_num_steps
     steps = factory.agent_step_counter.get(agent_id)
     agent: Table = factory.tables[agent_id]
@@ -56,12 +72,17 @@ def get_reward(agent_id: int, factory: Factory) -> float:
         num_cores_left = len([t for t in factory.tables if t.has_core()])
         rewards["rew_punish_slow_tables"] = - 1 * num_cores_left
 
-    # If an agent without core is close to one with core, let it shy away
     if not agent.has_core():
+        # If an agent without core is close to one with core, let it shy away...
         rewards["rew_avoid_cores"]  = -1.0 * has_core_neighbour(agent.node, factory)
 
-    # only configured rewards get picked up
-    rewards_to_use = get_reward_names_and_weights()
+        # ... and if it sits on any current target, punish it
+        # TODO: how can we account for the fact that tables might be "on the path"
+        #  to a target, given that we don't know what the path is?
+        #  Maybe we can account for situation in which ALL paths to a core target are obstructed
+        #  by this table?
+        all_targets = [c.current_target for c in factory.cores]
+        rewards["rew_blocking_target"] = -1.0 * int(agent.node in all_targets)
 
     reward = 0
     for reward_name, weight in rewards_to_use.items():
@@ -111,27 +132,31 @@ def has_core_neighbour(node: Node, factory: Factory):
                 return True
     return False
 
+# COORDINATE-BASED OBSERVATIONS
+# TODO: investigate if there's a way to assess the "value" of locations for
+#  non-core bearing tables to move to? This way we could assign them more concrete goals in the reward function.
 
 def obs_agent_id(agent_id: int, factory: Factory) -> np.ndarray:
+    """This agent's ID"""
     return np.asarray([agent_id])
 
 
 def obs_agent_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
+    """This agent's coordinates"""
     agent: Table = factory.tables[agent_id]
     return np.asarray(list(agent.node.coordinates))
 
 
-def obs_all_non_agent_table_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
-    """encode all non-agent table coordinates"""
-    agent: Table = factory.tables[agent_id]
+def obs_all_table_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
+    """encode all table coordinates"""
     coordinates = []
     for table in factory.tables:
-        if table is not agent:
-            coordinates += list(table.node.coordinates)
+        coordinates += list(table.node.coordinates)
     return np.asarray(coordinates)
 
 
 def obs_agent_has_neighbour(agent_id: int, factory: Factory) -> np.ndarray:
+    """Does this agent have a neighbouring node?"""
     agent: Table = factory.tables[agent_id]
 
     return np.asarray([
@@ -143,6 +168,7 @@ def obs_agent_has_neighbour(agent_id: int, factory: Factory) -> np.ndarray:
 
 
 def obs_agent_free_neighbour(agent_id: int, factory: Factory):
+    """Does this agent have a neighbouring node and, if so, can we go there?"""
     agent: Table = factory.tables[agent_id]
 
     return np.asarray([
@@ -154,32 +180,48 @@ def obs_agent_free_neighbour(agent_id: int, factory: Factory):
 
 
 def obs_agent_has_core(agent_id: int, factory: Factory):
+    """Does this agent have a core?"""
     agent: Table = factory.tables[agent_id]
     return np.asarray([agent.has_core()])
 
 
 def obs_agent_core_target_coordinates(agent_id: int, factory: Factory):
+    """Return this agent's core coordinates, it it has a core, otherwise [-1, -1]"""
     agent: Table = factory.tables[agent_id]
     if agent.has_core():
         current_target: Node = agent.core.current_target
         return np.asarray(list(current_target.coordinates))
     else:
+        # TODO: is there something more natural/clever than this?
+        #  compare this to the one-hot encoded situation, where we simply have a zeros-only array.
         return np.asarray([-1, -1])
 
 
+# ONE-HOT OBSERVATIONS
+
 def obs_all_tables_one_hot(agent_id: int, factory: Factory):
+    """One-hot encode all current table positions."""
     num_nodes = len(factory.nodes)
     all_table_indices = [factory.nodes.index(t.node) for t in factory.tables]
     return np.asarray(one_hot_encode(num_nodes, all_table_indices))
 
 
 def obs_all_cores_one_hot(agent_id: int, factory: Factory):
+    """One-hot encode all cores."""
     num_nodes = len(factory.nodes)
     all_table_indices = [factory.nodes.index(t.node) for t in factory.tables if t.has_core()]
     return np.asarray(one_hot_encode(num_nodes, all_table_indices))
 
 
+def obs_all_targets_one_hot(agent_id: int, factory: Factory):
+    """One-hot encode all core targets."""
+    num_nodes = len(factory.nodes)
+    all_target_indices = [factory.nodes.index(c.current_target) for c in factory.cores if c.current_target]
+    return np.asarray(one_hot_encode(num_nodes, all_target_indices))
+
+
 def obs_agent_id_one_hot(agent_id: int, factory: Factory):
+    """One-hot encode the current agent."""
     agent: Table = factory.tables[agent_id]
 
     # Agent node ID one-hot encoded (#Nodes)
@@ -189,8 +231,9 @@ def obs_agent_id_one_hot(agent_id: int, factory: Factory):
 
 
 def obs_agent_core_target_one_hot(agent_id: int, factory: Factory) -> np.ndarray:
+    """One-hot encode the current agent's core target. If it doesn't have a target,
+    simply return an array with all zeros."""
     agent: Table = factory.tables[agent_id]
-
     num_nodes = len(factory.nodes)
 
     # Current core target one-hot encoded (#Nodes)

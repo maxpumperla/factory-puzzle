@@ -18,8 +18,8 @@ from ray import rllib
 import numpy as np
 
 
-__all__ = ["FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv", "register_env_from_config",
-           "get_observation_space", "get_action_space", "add_masking"]
+__all__ = ["FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv", "TupleFactoryEnv",
+           "register_env_from_config", "get_observation_space", "get_action_space", "add_masking"]
 
 
 def register_env_from_config():
@@ -46,7 +46,10 @@ def add_masking(self, observations):
 
 
 def update_action_mask(env, agent=None):
-    current_agent = agent if agent else env.current_agent
+    if agent is not None:
+        current_agent = agent
+    else:
+        current_agent = env.current_agent
     agent_table = env.factory.tables[current_agent]
     agent_node = agent_table.node
 
@@ -96,6 +99,12 @@ def get_action_space(config):
     return spaces.Discrete(config.get("actions"))
 
 
+def get_tuple_action_space(config):
+    num_actions = config.get("actions")
+    agents = config.get("num_tables")
+    return spaces.Tuple([spaces.Discrete(num_actions) for _ in range(agents)])
+
+
 class FactoryEnv(gym.Env):
     """Define a simple OpenAI Gym environment for a single agent."""
 
@@ -112,6 +121,7 @@ class FactoryEnv(gym.Env):
         self.masking = self.config.get("masking")
         self.action_mask = None
         self.current_agent = 0
+        self.num_episodes = 0
 
         self.action_space = get_action_space(self.config)
         self.observation_space = get_observation_space(self.config, self.factory)
@@ -125,11 +135,12 @@ class FactoryEnv(gym.Env):
 
     def _step_observe(self):
         observations: np.ndarray = get_observations(self.current_agent, self.factory)
-        rewards = get_reward(self.current_agent, self.factory)
+        rewards = get_reward(self.current_agent, self.factory, self.num_episodes)
         done = self._done()
         if done:
             self.factory.add_completed_step_count()
-            self.factory.print_stats()
+            self.num_episodes += 1
+            self.factory.print_stats(self.num_episodes)
 
         observations = add_masking(self, observations)
 
@@ -163,12 +174,35 @@ class FactoryEnv(gym.Env):
         return self._reset()
 
 
+class TupleFactoryEnv(FactoryEnv):
+
+    def __init__(self, config=None):
+        super().__init__(config)
+        self.action_space = get_tuple_action_space(self.config)
+        # All agents active at once. We set this as safeguard to prevent the addition
+        # of agent-specific features by accident.
+        self.current_agent = None
+
+    def _step_apply(self, action_tuple):
+        """Just go through all actions in the tuple and apply the moves as before individually."""
+        for action in action_tuple:
+            assert action in range(self.num_actions)
+
+            table = self.factory.tables[self.current_agent]
+            action_result = do_action(table, self.factory, Action(action))
+            self.factory.add_move(self.current_agent, Action(action), action_result)
+
+    def _done(self):
+        return all(get_done(agent, self.factory) for agent in range(self.num_agents))
+
+
 class RoundRobinFactoryEnv(FactoryEnv):
 
     def __init__(self, config=None):
         super().__init__(config)
 
     def step(self, action):
+        """Cycle through agents, all else remains the same"""
         self._step_apply(action)
         self.current_agent = (self.current_agent + 1) % self.num_agents
         return self._step_observe()
@@ -187,12 +221,15 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
 
     def __init__(self, config=None):
         super().__init__(config)
+        # All agents active at once. We set this as safeguard to prevent the addition
+        # of agent-specific features by accident.
+        self.current_agent = None
 
     def step(self, action: Dict):
         agents = action.keys()
-        # assert len(agents) is self.num_agents
 
         for agent in agents:
+            # Carrying out actions sequentially might lead to certain collisions and invalid rail enterings.
             agent_action = Action(action.get(agent))
             action_result = do_action(self.factory.tables[agent], self.factory, agent_action)
             self.factory.add_move(agent, agent_action, action_result)
@@ -200,7 +237,7 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
         observations = {i: get_observations(i, self.factory) for i in agents}
         observations = add_masking(self, observations)
 
-        rewards = {i: get_reward(i, self.factory) for i in agents}
+        rewards = {i: get_reward(i, self.factory, self.num_episodes) for i in agents}
 
         # Note: if an agent is "done", we don't get any new actions for said agent
         # in a MultiAgentEnv. This is important, as tables without cores still need
@@ -217,20 +254,13 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
             dones = {i: True for i in agents}
             dones["__all__"] = True
             self.factory.add_completed_step_count()
-            self.factory.print_stats()
+            self.num_episodes += 1
+            self.factory.print_stats(self.num_episodes)
         else:
             dones = {i: False for i in agents}
             dones["__all__"] = False
 
         return observations, rewards, dones, {}
-
-    def render(self, mode='human'):
-        if mode == 'ansi':
-            return factory_string(self.factory)
-        elif mode == 'human':
-            return print_factory(self.factory)
-        else:
-            super(self.__class__, self).render(mode=mode)
 
     def reset(self):
         if self.config.get("random_init"):

@@ -74,6 +74,7 @@ class Factory:
         self.name = name
         self.cores = [t.core for t in self.tables if t.has_core()]
         self.max_num_steps = max_num_steps
+        self.initial_max_num_steps = max_num_steps
 
         # Stats counter
         self.step_count = 0
@@ -155,15 +156,13 @@ class Factory:
             counter = self.step_completion_counter.get(agent_id)
             counter.append(self.agent_step_counter[agent_id])
 
-    def print_stats(self):
+    def print_stats(self, episodes=None):
         if VERBOSE:
             PRINTER.pprint(">>> Completed an episode")
-            # for core in self.cores:
-            #     PRINTER.pprint(core.table.node.coordinates)
-            # for table in self.tables:
-            #     PRINTER.pprint(table.has_core())
-            cores_left = len([t for t in self.tables if t.has_core()])
+            PRINTER.pprint("   >>> Number of episodes completed:")
+            PRINTER.pprint(episodes)
             PRINTER.pprint("   >>> Number of cores left to deliver:")
+            cores_left = len([t for t in self.tables if t.has_core()])
             PRINTER.pprint(cores_left)
             PRINTER.pprint("   >>> Move counter")
             PRINTER.pprint(dict(self.move_counter))
