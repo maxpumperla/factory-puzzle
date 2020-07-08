@@ -18,8 +18,8 @@ from ray import rllib
 import numpy as np
 
 
-__all__ = ["FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv", "register_env_from_config",
-           "get_observation_space", "get_action_space", "add_masking"]
+__all__ = ["FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv", "TupleFactoryEnv",
+           "register_env_from_config", "get_observation_space", "get_action_space", "add_masking"]
 
 
 def register_env_from_config():
@@ -96,6 +96,12 @@ def get_action_space(config):
     return spaces.Discrete(config.get("actions"))
 
 
+def get_tuple_action_space(config):
+    num_actions = config.get("actions")
+    agents = config.get("num_tables")
+    return spaces.Tuple([spaces.Discrete(num_actions) for _ in range(agents)])
+
+
 class FactoryEnv(gym.Env):
     """Define a simple OpenAI Gym environment for a single agent."""
 
@@ -163,12 +169,32 @@ class FactoryEnv(gym.Env):
         return self._reset()
 
 
+class TupleFactoryEnv(FactoryEnv):
+
+    def __init__(self, config=None):
+        super().__init__(config)
+        self.action_space = get_tuple_action_space(self.config)
+
+    def _step_apply(self, action_tuple):
+        """Just go through all actions in the tuple and apply the moves as before individually."""
+        for action in action_tuple:
+            assert action in range(self.num_actions)
+
+            table = self.factory.tables[self.current_agent]
+            action_result = do_action(table, self.factory, Action(action))
+            self.factory.add_move(self.current_agent, Action(action), action_result)
+
+    def _done(self):
+        return all(get_done(agent, self.factory) for agent in range(self.num_agents))
+
+
 class RoundRobinFactoryEnv(FactoryEnv):
 
     def __init__(self, config=None):
         super().__init__(config)
 
     def step(self, action):
+        """Cycle through agents, all else remains the same"""
         self._step_apply(action)
         self.current_agent = (self.current_agent + 1) % self.num_agents
         return self._step_observe()

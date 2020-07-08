@@ -12,6 +12,9 @@ def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
     """Get observation of one agent given the current factory state.
     We first determine the observations selected in the config file and
     then concatenate the results of the corresponding observation functions.
+
+    The names of the functions have to match the names in the config. That's
+    also how you "register" a new observation
     """
     obs_names = get_observation_names()
     obs_dict = {obs: getattr(importlib.import_module('factory.features'), obs)(agent_id, factory)

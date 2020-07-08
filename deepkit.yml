@@ -20,7 +20,7 @@ config:
   experiment_list: full_12_run_round_robin
 
   # RL-specific configuration
-  env: RoundRobinFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv"
+  env: TupleFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv" and "TupleFactoryEnv"
   max_num_steps: 1000 # NOTE: need to set this high enough for the big factory
   masking: true  # whether to use action masking
   algorithm: PPO  # Choose from PPO, DQN, MARWIL
