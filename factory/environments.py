@@ -121,6 +121,7 @@ class FactoryEnv(gym.Env):
         self.masking = self.config.get("masking")
         self.action_mask = None
         self.current_agent = 0
+        self.num_episodes = 0
 
         self.action_space = get_action_space(self.config)
         self.observation_space = get_observation_space(self.config, self.factory)
@@ -134,11 +135,12 @@ class FactoryEnv(gym.Env):
 
     def _step_observe(self):
         observations: np.ndarray = get_observations(self.current_agent, self.factory)
-        rewards = get_reward(self.current_agent, self.factory)
+        rewards = get_reward(self.current_agent, self.factory, self.num_episodes)
         done = self._done()
         if done:
             self.factory.add_completed_step_count()
-            self.factory.print_stats()
+            self.num_episodes += 1
+            self.factory.print_stats(self.num_episodes)
 
         observations = add_masking(self, observations)
 
@@ -235,7 +237,7 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
         observations = {i: get_observations(i, self.factory) for i in agents}
         observations = add_masking(self, observations)
 
-        rewards = {i: get_reward(i, self.factory) for i in agents}
+        rewards = {i: get_reward(i, self.factory, self.num_episodes) for i in agents}
 
         # Note: if an agent is "done", we don't get any new actions for said agent
         # in a MultiAgentEnv. This is important, as tables without cores still need
@@ -252,7 +254,8 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
             dones = {i: True for i in agents}
             dones["__all__"] = True
             self.factory.add_completed_step_count()
-            self.factory.print_stats()
+            self.num_episodes += 1
+            self.factory.print_stats(self.num_episodes)
         else:
             dones = {i: False for i in agents}
             dones["__all__"] = False
