@@ -1,25 +1,27 @@
-from factory.environments import FactoryEnv, RoundRobinFactoryEnv, MultiAgentFactoryEnv
-from factory.config import SIMULATION_CONFIG
+"""Start this script with either "deepkit run" or "python examples/save_trainer.py"
+"""
+from factory.rl import get_config
+from factory.environments import register_env_from_config
 
 import ray
-import ray.rllib.agents.dqn as dqn
+import ray.rllib.agents.dqn as algo
+from ray.rllib.agents.dqn import DQNTrainer as Trainer
 from ray.tune.logger import pretty_print
-from ray.tune.registry import register_env
 
-print(pretty_print(SIMULATION_CONFIG))
-ray.init()
 
-config = dqn.DEFAULT_CONFIG.copy()
-config["num_gpus"] = 0
-config["num_workers"] = 4
-config["eager"] = False
+ray.init(webui_host='127.0.0.1', local_mode=True)
+config = get_config(algo)
+# TODO: this needs to be fixed for masking (register model etc.)
 
-register_env("factory", lambda _: RoundRobinFactoryEnv())
-trainer = dqn.DQNTrainer(config=config, env="factory")
+register_env_from_config()
 
-for i in range(100):
+config['output'] = "factory-offline-data"
+
+trainer = Trainer(config=config, env='factory')
+
+for i in range(101):
     result = trainer.train()
     print(pretty_print(result))
-    if i % 10 == 0:
+    if i % 50 == 0:
         checkpoint = trainer.save()
         print("checkpoint saved at", checkpoint)

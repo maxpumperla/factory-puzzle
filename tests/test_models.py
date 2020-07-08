@@ -1,6 +1,6 @@
 import pytest
-from factory.models import Direction, Node, Rail
-from factory.models import Table, Factory, Core, Phase
+from factory.models import Direction, Node, Rail, Table, Core, Phase
+from factory.simulation import Factory
 
 
 def test_directions():
@@ -25,7 +25,7 @@ def test_node_connectivity():
 
     with pytest.raises(Exception):
         # no self-connections
-        node_a.add_neighbour(node_a)
+        node_a.add_neighbour(node_a, Direction.left)
 
     node_b = Node()
     # b <- a
@@ -53,26 +53,15 @@ def test_rail():
     node_a.add_neighbour(node_b, Direction.left)
     node_b.add_neighbour(node_c, Direction.up)
 
-    rail = Rail(nodes=[node_a, node_b, node_c], shuttle=node_a)
+    rail = Rail(nodes=[node_a, node_b, node_c])
 
     # the rail has a shuttle at a
-    assert node_a.has_shuttle
     assert not node_a.has_table()
-    assert rail.shuttle == node_a
-
-    # shuttles can be moved along rails
-    rail.order_shuttle(to=node_c)
-    assert rail.shuttle == node_c
-    assert not node_a.has_shuttle
 
     # put a table on the shuttle
     table = Table(node_c)
     assert node_c.table == table
     assert table.node == node_c
-
-    with pytest.raises(Exception):
-        # Can't order shuttles with tables on them
-        rail.order_shuttle(to=node_b)
 
 
 def test_get_rail():
@@ -81,13 +70,13 @@ def test_get_rail():
     node_b.add_neighbour(node_c, Direction.up)
 
     nodes = [node_a, node_b, node_c]
-    rail = Rail(nodes=nodes, shuttle=node_a)
+    rail = Rail(nodes=nodes)
     factory = Factory(nodes, [rail], [])
 
     assert factory.get_rail(node_a) == rail
 
     node_d = Node()
-    assert factory.get_rail(node_d) == None
+    assert factory.get_rail(node_d) is None
 
 
 def test_core():

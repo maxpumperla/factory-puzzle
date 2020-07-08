@@ -1,8 +1,11 @@
 from factory.util import get_default_factory, get_small_default_factory, draw_boxes
 from factory.agents import RandomAgent, RayAgent
-from factory.controls import TableAndRailController, ActionResult
+from factory.config import SIMULATION_CONFIG
+from factory.controls import do_action, ActionResult
 from factory.environments import FactoryEnv, RoundRobinFactoryEnv, MultiAgentFactoryEnv, get_observations
-import ray.rllib.agents.dqn as dqn
+from factory.environments import add_masking
+from factory.rl import get_algorithm
+
 
 import ray
 from ray.tune.registry import register_env
@@ -94,14 +97,20 @@ def run_the_app():
     ])
     agent_id = int(table_agent[11])
 
+    env_name, env_class = environment_sidebar()
+    env = env_class()
+
     if is_random:
-        agent = RandomAgent(factory.tables[agent_id], factory, table_agent)
+        agent = RandomAgent(factory, table_agent)
     else:
         policy_file_name = st.text_input('Enter path to checkpoint:')
-        env_name = environment_sidebar()
-        agent_cls = dqn.DQNTrainer
+
+        agent_cls = get_algorithm()
+        from ray.rllib.models import ModelCatalog
+        from factory.util.masking import ActionMaskingTFModel, MASKING_MODEL_NAME
+        ModelCatalog.register_custom_model(MASKING_MODEL_NAME, ActionMaskingTFModel)
         if policy_file_name:
-            agent = RayAgent(table=factory.tables[agent_id], factory=factory, env_name=env_name,
+            agent = RayAgent(factory=factory, env_name=env_name,
                              policy_file_name=policy_file_name, agent_cls=agent_cls)
         else:
             agent = None
@@ -117,26 +126,32 @@ def run_the_app():
 
     original_image = load_image(img_name)
 
-    controllers = [TableAndRailController(t, factory) for t in factory.tables]
+    tables = factory.tables
 
     if multi_agent:
         agent_id = 0
 
+
     if start:
         invalids = 0
         collisions = 0
+        i = 0
         for i in range(max_steps):
             if multi_agent:
                 agent_id = (agent_id + 1) % num_tables
             obs = None if is_random else get_observations(agent_id, factory)
+            if SIMULATION_CONFIG.get("masking"):
+                obs = add_masking(env, obs)
+
             action = agent.compute_action(obs)
             top_text.empty()
 
             # controllers carry out the action suggested by agents for simplicity here
-            result = controllers[agent_id].take_action(action)
+            table = tables[agent_id]
+            result = do_action(table, factory, action)
             invalids += result == ActionResult.INVALID
             collisions += result == ActionResult.COLLISION
-            top_text.text(f"Agent: {agent.get_location().name} | Location: {agent.get_location().coordinates}\n"
+            top_text.text(f"Agent: {table.node.name} | Location: {table.node.coordinates}\n"
                           f"Illegal moves: {invalids} | Collisions: {collisions}\n"
                           f"Intended action: {action}\nResult: {result}")
             factory_img.empty()
@@ -173,8 +188,9 @@ def environment_sidebar():
     st.sidebar.markdown("# Environment")
 
     env_type = st.sidebar.selectbox("Choose an environment:", list(FACTORY_ENV_MAP.keys()))
-    register_env(env_type, lambda _: FACTORY_ENV_MAP.get(env_type)())
-    return env_type
+    env_class = FACTORY_ENV_MAP.get(env_type)
+    register_env(env_type, lambda _: env_class())
+    return env_type, env_class
 
 
 if __name__ == "__main__":

@@ -1,127 +1,108 @@
 """In which environment are things happening? (where)
 The environment specifies what agents can observe and how
 they are rewarded for actions."""
-from factory.models import Factory, Table, Direction, Node
-from factory.controls import Action, ActionResult, TableAndRailController
+from factory.controls import Action, do_action
+from factory.models import Direction
 from factory.util import print_factory, factory_string
-from factory.config import SIMULATION_CONFIG, get_factory_from_config
+from factory.features import *
+from factory.config import SIMULATION_CONFIG, factory_from_config, MASK_KEY, OBS_KEY
 
+import importlib
 from copy import deepcopy
+from typing import Dict
 
 import gym
 from gym import spaces
+import ray
 from ray import rllib
 import numpy as np
-from typing import List, Dict
 
 
-class StatisticsTracker:
-
-    def __init__(self, factory: Factory, max_num_steps):
-        self.max_num_steps = max_num_steps
-        self.factory = factory
-        self.step_count = 0
-        self.moves: Dict[int, List[ActionResult]] = {t: [] for t in range(len(factory.tables))}
-
-    def add_move(self, agent_id: int, move: ActionResult):
-        self.moves.get(agent_id).append(move)
-        self.step_count += 1
-
-    @staticmethod
-    def from_config(config):
-        factory = get_factory_from_config(config)
-        max_num_steps = config.get("max_num_steps")
-        return StatisticsTracker(factory, max_num_steps)
+__all__ = ["FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv", "TupleFactoryEnv",
+           "register_env_from_config", "get_observation_space", "get_action_space", "add_masking"]
 
 
-def check_neighbour(node: Node, direction: Direction, factory: Factory):
-    """If an agent has a neighbour in the specified direction, add a 1,
-    else 0 to the observation space. If that neighbour is free, add 1,
-    else 0 (a non-existing neighbour counts as occupied).
-    """
-    has_direction = node.has_neighbour(direction)
-    is_occupied = True
-    if has_direction:
-        node: Node = node.get_neighbour(direction)
-        if node.is_rail:
-            rail = factory.get_rail(node)
-            is_occupied = rail.shuttle_node().has_table()
+def register_env_from_config():
+    env = SIMULATION_CONFIG.get("env")
+    cls = getattr(importlib.import_module('factory.environments'), env)
+    ray.tune.registry.register_env("factory", lambda _: cls())
+
+
+def add_masking(self, observations):
+    """Add masking, if configured, otherwise return observations as they were."""
+    if self.masking:
+        if self.config.get("env") == "MultiAgentFactoryEnv":  # Multi-agent scenario
+            for key, obs in observations.items():
+                observations[key] = {
+                    MASK_KEY: update_action_mask(self, agent=key),
+                    OBS_KEY: obs,
+                }
         else:
-            is_occupied = node.has_table()
-    return [has_direction, not is_occupied]
+            observations = {
+                MASK_KEY: update_action_mask(self),
+                OBS_KEY: observations,
+            }
+    return observations
 
 
-def has_core_neighbour(node: Node, factory: Factory):
-    """If a node has at least one direct neighbour with a core, return True,
-    else False. We use this to inform tables without cores to move out of the way
-    of tables with cores."""
-    for direction in Direction:
-        has_dir, is_free = check_neighbour(node, direction, factory)
-        if has_dir and not is_free:
-            neighbour: Node = node.get_neighbour(direction)
-            if neighbour.has_table() and neighbour.table.has_core():
-                return True
-    return False
-
-
-def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
-    """Get observation of one agent (here the same as Table).
-    """
-    # Agent coordinates (2)
-    agent: Table = factory.tables[agent_id]
-    obs = [agent_id]
-    obs += list(agent.node.coordinates)
-
-    # Direct neighbours available and free? (8)
-    obs += check_neighbour(agent.node, Direction.up, factory)
-    obs += check_neighbour(agent.node, Direction.right, factory)
-    obs += check_neighbour(agent.node, Direction.down, factory)
-    obs += check_neighbour(agent.node, Direction.left, factory)
-
-    # Has core and core coordinates? (3)
-    obs.append(agent.has_core())
-    if agent.has_core():
-        current_target: Node = agent.core.current_target
-        obs += list(current_target.coordinates)
+def update_action_mask(env, agent=None):
+    if agent is not None:
+        current_agent = agent
     else:
-        obs += [-1, -1]
+        current_agent = env.current_agent
+    agent_table = env.factory.tables[current_agent]
+    agent_node = agent_table.node
 
-    return np.asarray(obs)
+    can_move_up = can_move_in_direction(agent_node, Direction.up, env.factory)
+    can_move_right = can_move_in_direction(agent_node, Direction.right, env.factory)
+    can_move_down = can_move_in_direction(agent_node, Direction.down, env.factory)
+    can_move_left = can_move_in_direction(agent_node, Direction.left, env.factory)
 
+    can_move_at_all = any([can_move_up, can_move_right, can_move_down, can_move_left])
 
-def get_reward(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> float:
-    """Get the reward for a single agent in its current state.
-    """
-    moves = tracker.moves
-    max_num_steps = tracker.max_num_steps
-    steps = tracker.step_count
-
-    agent: Table = factory.tables[agent_id]
-    reward = 0.0
-
-    # sum negative rewards due to collisions and illegal moves
-    reward += sum(m.reward() / 100. for m in moves.get(agent_id))
-
-    # high incentive for reaching a target
-    time_taken = max(0, (max_num_steps - steps) / float(max_num_steps))
-    if agent.is_at_target:
-        reward += 30.0 * (1 - time_taken)
-
-    # If an agent without core is close to one with core, let it shy away
-    if not agent.has_core():
-        reward -= has_core_neighbour(agent.node, factory)
-
-    return reward
+    return np.array([
+        # Mask out illegal moves and collisions (no auto-regression, collisions still possible in MultiEnv)
+        can_move_up,
+        can_move_right,
+        can_move_down,
+        can_move_left,
+        not can_move_at_all, # Only allow not to move if no other move is valid
+        # not agent_table.has_core(),  # Allow not moving only if table has no core anymore
+    ])
 
 
-def get_done(agent_id: int, factory: Factory, tracker: StatisticsTracker) -> bool:
-    """We're done with the table if it doesn't have a core anymore or we're out of moves.
-    """
-    # TODO: figure out why this trivial check results in episode_len_mean: 1
-    # if tracker.step_count > tracker.max_num_steps:
-    #     return True
-    agent: Table = factory.tables[agent_id]
-    return not agent.has_core()
+def get_observation_space(config, factory=None) -> spaces.Space:
+    if not factory:
+        factory = factory_from_config(config)
+    dummy_obs = get_observations(0, factory)
+
+    masking = config.get("masking")
+    num_actions = config.get("actions")
+
+    observation_space = spaces.Box(
+        low=config.get("low"),
+        high=config.get("high"),
+        shape=(len(dummy_obs),),
+        dtype=np.float32
+    )
+
+    if masking:  # add masking
+        observation_space = spaces.Dict({
+            MASK_KEY: spaces.Box(0, 1, shape=(num_actions,)),
+            OBS_KEY: observation_space,
+
+        })
+    return observation_space
+
+
+def get_action_space(config):
+    return spaces.Discrete(config.get("actions"))
+
+
+def get_tuple_action_space(config):
+    num_actions = config.get("actions")
+    agents = config.get("num_tables")
+    return spaces.Tuple([spaces.Discrete(num_actions) for _ in range(agents)])
 
 
 class FactoryEnv(gym.Env):
@@ -133,35 +114,44 @@ class FactoryEnv(gym.Env):
         if config is None:
             config = SIMULATION_CONFIG
         self.config = config
-        self.tracker = StatisticsTracker.from_config(self.config)
-        self.factory = self.tracker.factory
+        self.factory = factory_from_config(config)
         self.initial_factory = deepcopy(self.factory)
+        self.num_agents = self.config.get("num_tables")
+        self.num_actions = self.config.get("actions")
+        self.masking = self.config.get("masking")
+        self.action_mask = None
         self.current_agent = 0
+        self.num_episodes = 0
 
-        self.num_actions = config.get("actions")
-        self.action_space = spaces.Discrete(self.num_actions)
-        self.observation_space = gym.spaces.Box(
-            low=config.get("low"),
-            high=config.get("high"),
-            shape=(config.get("observations"),),
-            dtype=np.float32
-        )
+        self.action_space = get_action_space(self.config)
+        self.observation_space = get_observation_space(self.config, self.factory)
 
-    def _step(self, action):
+    def _step_apply(self, action):
         assert action in range(self.num_actions)
 
         table = self.factory.tables[self.current_agent]
-        controller = TableAndRailController(table, self.factory)
-        action_result = controller.take_action(Action(action))
-        self.tracker.add_move(self.current_agent, action_result)
+        action_result = do_action(table, self.factory, Action(action))
+        self.factory.add_move(self.current_agent, Action(action), action_result)
 
+    def _step_observe(self):
         observations: np.ndarray = get_observations(self.current_agent, self.factory)
-        rewards = get_reward(self.current_agent, self.factory, self.tracker)
-        done = get_done(self.current_agent, self.factory, self.tracker)
+        rewards = get_reward(self.current_agent, self.factory, self.num_episodes)
+        done = self._done()
+        if done:
+            self.factory.add_completed_step_count()
+            self.num_episodes += 1
+            self.factory.print_stats(self.num_episodes)
+
+        observations = add_masking(self, observations)
+
         return observations, rewards, done, {}
 
+    def _done(self):
+        return get_done(self.current_agent, self.factory)
+
     def step(self, action):
-        return self._step(action)
+        self._step_apply(action)
+        return self._step_observe()
 
     def render(self, mode='human'):
         if mode == 'ansi':
@@ -169,79 +159,114 @@ class FactoryEnv(gym.Env):
         elif mode == 'human':
             return print_factory(self.factory)
         else:
-            super(FactoryEnv, self).render(mode=mode)
+            super(self.__class__, self).render(mode=mode)
 
-    def reset(self):
+    def _reset(self):
         if self.config.get("random_init"):
-            self.factory = get_factory_from_config(self.config)
+            self.factory = factory_from_config(self.config)
         else:
             self.factory = deepcopy(self.initial_factory)
-        return get_observations(self.current_agent, self.factory)
+        observations = get_observations(self.current_agent, self.factory)
+        observations = add_masking(self, observations)
+        return observations
+
+    def reset(self):
+        return self._reset()
+
+
+class TupleFactoryEnv(FactoryEnv):
+
+    def __init__(self, config=None):
+        super().__init__(config)
+        self.action_space = get_tuple_action_space(self.config)
+        # All agents active at once. We set this as safeguard to prevent the addition
+        # of agent-specific features by accident.
+        self.current_agent = None
+
+    def _step_apply(self, action_tuple):
+        """Just go through all actions in the tuple and apply the moves as before individually."""
+        for action in action_tuple:
+            assert action in range(self.num_actions)
+
+            table = self.factory.tables[self.current_agent]
+            action_result = do_action(table, self.factory, Action(action))
+            self.factory.add_move(self.current_agent, Action(action), action_result)
+
+    def _done(self):
+        return all(get_done(agent, self.factory) for agent in range(self.num_agents))
 
 
 class RoundRobinFactoryEnv(FactoryEnv):
 
     def __init__(self, config=None):
-        super(RoundRobinFactoryEnv, self).__init__(config)
-        self.current_agent = 0
-        self.num_agents = self.config.get("num_tables")
+        super().__init__(config)
 
     def step(self, action):
-        result = self._step(action)
+        """Cycle through agents, all else remains the same"""
+        self._step_apply(action)
         self.current_agent = (self.current_agent + 1) % self.num_agents
-        return result
+        return self._step_observe()
+
+    def _done(self):
+        return all(get_done(agent, self.factory) for agent in range(self.num_agents))
+
+    def reset(self):
+        self.current_agent = 0
+        return self._reset()
 
 
-class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv):
+
+class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
     """Define a ray multi agent env"""
 
     def __init__(self, config=None):
-        if config is None:
-            config = SIMULATION_CONFIG
-        self.config = config
-        self.tracker = StatisticsTracker.from_config(self.config)
-        self.factory = self.tracker.factory
-        self.initial_factory = deepcopy(self.factory)
-        self.num_agents = self.config.get("num_tables")
-
-        self.num_actions = config.get("actions")
-        self.action_space = spaces.Discrete(self.num_actions)
-        self.observation_space = gym.spaces.Box(
-            low=config.get("low"),
-            high=config.get("high"),
-            shape=(config.get("observations"),),
-            dtype=np.float32
-        )
+        super().__init__(config)
+        # All agents active at once. We set this as safeguard to prevent the addition
+        # of agent-specific features by accident.
+        self.current_agent = None
 
     def step(self, action: Dict):
-        tables = self.factory.tables
-        controllers = [TableAndRailController(t, self.factory) for t in tables]
+        agents = action.keys()
 
-        keys = action.keys()
-        for current_agent in keys:
-            assert action.get(current_agent) is not None
-            action_result = controllers[current_agent].take_action(Action(action.get(current_agent)))
-            self.tracker.add_move(current_agent, action_result)
+        for agent in agents:
+            # Carrying out actions sequentially might lead to certain collisions and invalid rail enterings.
+            agent_action = Action(action.get(agent))
+            action_result = do_action(self.factory.tables[agent], self.factory, agent_action)
+            self.factory.add_move(agent, agent_action, action_result)
 
-        observations = {i: get_observations(i, self.factory) for i in keys}
-        rewards = {i: get_reward(i, self.factory, self.tracker) for i in keys}
-        dones = {i: get_done(i, self.factory, self.tracker) for i in keys}
-        all_done = all(v for k, v in dones.items())
-        dones['__all__'] = all_done
+        observations = {i: get_observations(i, self.factory) for i in agents}
+        observations = add_masking(self, observations)
+
+        rewards = {i: get_reward(i, self.factory, self.num_episodes) for i in agents}
+
+        # Note: if an agent is "done", we don't get any new actions for said agent
+        # in a MultiAgentEnv. This is important, as tables without cores still need
+        # to move. We prevent this behaviour by setting all done fields to False until
+        # all tables are done.
+        all_cores_delivered = all(not t.has_core() for t in self.factory.tables)
+        counts = [self.factory.agent_step_counter.get(agent) for agent in agents]
+        # maximum steps are counted per agent, not in total (makes it easier to keep config stable)
+        max_steps_reached = all(count > self.factory.max_num_steps for count in counts)
+
+        all_done = all_cores_delivered or max_steps_reached
+
+        if all_done:
+            dones = {i: True for i in agents}
+            dones["__all__"] = True
+            self.factory.add_completed_step_count()
+            self.num_episodes += 1
+            self.factory.print_stats(self.num_episodes)
+        else:
+            dones = {i: False for i in agents}
+            dones["__all__"] = False
 
         return observations, rewards, dones, {}
 
-    def render(self, mode='human'):
-        if mode == 'ansi':
-            return factory_string(self.factory)
-        elif mode == 'human':
-            return print_factory(self.factory)
-        else:
-            super(MultiAgentFactoryEnv, self).render(mode=mode)
-
     def reset(self):
         if self.config.get("random_init"):
-            self.factory = get_factory_from_config(self.config)
+            self.factory = factory_from_config(self.config)
         else:
             self.factory = deepcopy(self.initial_factory)
-        return {i: get_observations(i, self.factory) for i in range(self.num_agents)}
+        observations = {i: get_observations(i, self.factory) for i in range(self.num_agents)}
+        observations = add_masking(self, observations)
+        return observations

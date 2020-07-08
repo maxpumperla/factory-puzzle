@@ -9,16 +9,22 @@ from ray.tune.registry import register_env
 
 register_env("factory", lambda _: FactoryEnv())
 ENV = "factory"
+from ray.rllib.models import ModelCatalog
+from factory.util.masking import ActionMaskingTFModel, MASKING_MODEL_NAME
+ModelCatalog.register_custom_model(MASKING_MODEL_NAME, ActionMaskingTFModel)
 
 
 def run(checkpoint, cls, steps=1000, out=None, config_args={}):
+    """This is essentially a copy of the function available in RLlib,
+    which has a few problems.
+    We could even run this on the command line, but working with custom
+    envs and custom models is a mess right now.
+    """
     config = {}
     # Load configuration from checkpoint file.
     config_dir = os.path.dirname(checkpoint)
-    config_path = os.path.join(config_dir, "params.pkl")
-    # Try parent directory.
-    if not os.path.exists(config_path):
-        config_path = os.path.join(config_dir, "../params.pkl")
+    config_path = os.path.abspath(os.path.join(config_dir, "../params.pkl"))
+    print(config_path)
 
     # If no pkl file found, require command line `--config`.
     if not os.path.exists(config_path):

@@ -1,9 +1,17 @@
-from ray.tune import run
-from factory.util.rl import run_config
-from factory.environments import MultiAgentFactoryEnv
-from ray.tune.registry import register_env
+"""Start this script with "python examples/run_training.py"
+"""
+import ray
+from factory.rl import get_tune_run_config
+from factory.environments import register_env_from_config
+from factory.config import SIMULATION_CONFIG
 
+ray.init(
+    webui_host='127.0.0.1',log_to_driver=True,
+    memory=10000 * 1024 * 1024,
+    local_mode=SIMULATION_CONFIG.get("local_mode"),
+)
 
-register_env("factory", lambda _: MultiAgentFactoryEnv())
+register_env_from_config()
 
-trials = run(**run_config(env="factory"))
+trials = ray.tune.run(**get_tune_run_config())
+

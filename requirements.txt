@@ -1,5 +1,8 @@
-tensorflow
-streamlit
-opencv-python
-ray[rllib]
-gym
+tensorflow==2.2.0
+streamlit==0.60.0
+opencv-python==4.2.0.34
+ray[rllib]==0.8.5
+gym==0.17.2
+gputil
+networkx==2.4
+deepkit==1.0.6

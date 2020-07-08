@@ -4,8 +4,9 @@ from abc import ABC, abstractmethod
 import os
 import pickle
 import numpy as np
-from factory.models import Factory, Table, Node
-from factory.controls import Action, ActionResult, Controller, TableAndRailController
+from factory.models import Table
+from factory.simulation import Factory
+from factory.controls import Action, ActionResult, TableAndRailController
 
 
 class Agent(ABC):
@@ -13,19 +14,15 @@ class Agent(ABC):
     state, an Agent selects an action, which a Controller can execute
     on their behalf."""
 
-    controller: Controller
+    controller: TableAndRailController
     name: str
 
-    def take_action(self, action: Action) -> ActionResult:
-        return self.controller.take_action(action)
+    def take_action(self, table: Table, action: Action) -> ActionResult:
+        return self.controller.do_action(table, action)
 
     @abstractmethod
     def compute_action(self, observations: np.ndarray) -> Action:
         """This is where the magic happens. This is modeled after Ray's convention."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_location(self) -> Node:
         raise NotImplementedError
 
     def save(self):
@@ -39,24 +36,21 @@ class Agent(ABC):
 class RandomAgent(Agent):
     """Move this table and adjacent shuttles randomly"""
 
-    def __init__(self, table: Table, factory: Factory, name=None):
+    def __init__(self, factory: Factory, name=None):
         controller_name = name + "_controller" if name else None
-        self.controller: TableAndRailController = TableAndRailController(table, factory, controller_name)
+        self.controller: TableAndRailController = TableAndRailController(factory, controller_name)
         self.name = name
 
     def compute_action(self, observations=None) -> Action:
         return Action.random_action()
 
-    def get_location(self) -> Node:
-        return self.controller.table.node
-
 
 class RayAgent(Agent):
     """Move this table and adjacent shuttles according to a Ray RLlib policy"""
-    def __init__(self, table: Table, factory: Factory, env_name: str, policy_file_name: str,
+    def __init__(self, factory: Factory, env_name: str, policy_file_name: str,
                  agent_cls, name=None):
         controller_name = name + "_controller" if name else None
-        self.controller: TableAndRailController = TableAndRailController(table, factory, controller_name)
+        self.controller: TableAndRailController = TableAndRailController(factory, controller_name)
         self.name = name
 
         config_dir = os.path.dirname(policy_file_name)
@@ -75,20 +69,14 @@ class RayAgent(Agent):
     def compute_action(self, observations) -> Action:
         return Action(self.agent.compute_action(observations))
 
-    def get_location(self) -> Node:
-        return self.controller.table.node
 
-
-class Heuristic(Agent):
+class HeuristicAgent(Agent):
     """Apply a simple heuristic to get cores to targets."""
 
-    def __init__(self, table: Table, factory: Factory, name=None):
+    def __init__(self, factory: Factory, name=None):
         controller_name = name + "_controller" if name else None
-        self.controller: TableAndRailController = TableAndRailController(table, factory, controller_name)
+        self.controller: TableAndRailController = TableAndRailController(factory, controller_name)
         self.name = name
 
-    def compute_action(self) -> Action:
+    def compute_action(self, observations) -> Action:
         return Action.none  # TODO
-
-    def get_location(self) -> Node:
-        return self.controller.table.node

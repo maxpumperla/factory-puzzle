@@ -4,7 +4,8 @@ import enum
 from typing import Optional, Tuple, TypeVar, List, Dict
 
 
-__all__ = ["Direction", "Node", "Rail", "Table", "Phase", "Core", "Factory"]
+
+__all__ = ["Direction", "Node", "Rail", "Table", "Phase", "Core", "ActionResult"]
 N = TypeVar('N', bound='Node')
 
 
@@ -62,20 +63,17 @@ class Node:
     a standalone, static node. Nodes can host a single Table.
     """
     def __init__(self, name: Optional[str] = None, is_rail: bool = False,
-                 has_shuttle: bool = True,
                  coordinates: Optional[Tuple[int, int]] = None):
         self.is_rail = is_rail
         self.name = name
         self.coordinates = coordinates
         self.neighbours = {d: None for d in Direction.get_all()}
         self.table: Optional[Table] = None
-        self.has_shuttle: bool = has_shuttle
 
     def has_table(self) -> bool:
         return self.table is not None
 
     def set_table(self, table: Table) -> None:
-        assert self.has_shuttle, "Can't put a table on a rail without shuttle"
         assert not self.has_table(), "Can't set another Table, remove the existing first."
         self.table = table
 
@@ -101,32 +99,30 @@ class Node:
 
 class Rail:
     """Rails consist of sequentially connected Nodes,
-    exactly one of which carries a shuttle."""
-    def __init__(self, nodes: List[Node], shuttle: Node):
-        assert shuttle in nodes, "Shuttle must be on this rail"
+    only one of which can carry a Table."""
+    def __init__(self, nodes: List[Node]):
+        for node in nodes:
+            node.is_rail = True
         for i in range(len(nodes)-1):
             assert nodes[i].connected_to(nodes[i+1])
-        for node in nodes:
-            node.has_shuttle = False
-        shuttle.has_shuttle = True
-
         self.nodes = nodes
-        self.shuttle = shuttle
 
-    def shuttle_node(self) -> Node:
-        return self.shuttle
+    def get_table_node(self):
+        num_tables = self.num_tables()
+        assert num_tables <= 1, "Can have at most one table on a rail"
+        if num_tables is 0:
+            return None
+        return [n for n in self.nodes if n.has_table()][0]
+
+    def num_tables(self):
+        return len([n for n in self.nodes if n.has_table()])
+
+    def has_table(self):
+        return self.num_tables() == 1
     
     def is_free(self) -> bool:
-        return not self.shuttle.has_table()
+        return self.num_tables() == 0
 
-    def order_shuttle(self, to: Node) -> None:
-        """Move the rail shuttle to a target node on this rail."""
-        assert self.is_free(), "Can't order shuttle with a table on top"
-        assert to in self.nodes, "Destination must be on this rail"
-        
-        self.shuttle.has_shuttle = False
-        to.has_shuttle = True
-        self.shuttle = to
 
 
 class Phase(enum.IntEnum):
@@ -137,6 +133,7 @@ class Phase(enum.IntEnum):
     C = 2
     D = 3
     E = 4
+    F = 5
 
 
 class Core:
@@ -162,27 +159,13 @@ class Core:
         self.current_target = self.cycle[self.current_phase] if not self.done() else None
 
 
-class Factory:
-    """A Factory sets up all components (nodes, rails, tables) needed to
-    solve the problem of delivering cores to their destinations. Note that
-    this is just a "model", the application logic and agent interaction is
-    separated  """
-    def __init__(self, nodes: List[Node], rails: List[Rail], 
-                 tables: List[Table], name: str = None):
-        self.nodes = nodes
-        self.rails = rails
-        self.tables = tables
-        self.name = name
-        self.cores = [t.core for t in self.tables if t.has_core()]
+class ActionResult(enum.IntEnum):
+    """Result of an action with attached rewards."""
+    NONE = 0,
+    MOVED = 1,
+    INVALID = 2
+    COLLISION = 3
+    INVALID_RAIL_ENTERING = 4
 
-    def done(self):
-        return all([c.done() for c in self.cores])
-
-    def set_tables(self, tables: List[Table]):
-        self.tables = tables
-
-    def get_rail(self, node: Node) -> Optional[Rail]:
-        for rail in self.rails:
-            if node in rail.nodes:
-                return rail
-        return None
+    def reward(self):
+        return 0 if self.value < 2 else -1

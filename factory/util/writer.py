@@ -1,10 +1,18 @@
-from ..models import Factory, Node, Direction
+from factory.models import Node
+from factory.simulation import Factory
 import cv2
 import numpy as np
 SCALE_X, SCALE_Y = 4, 2
 
 
+def load_image(file_name="../assets/large_factory.jpg"):
+    image = cv2.imread(file_name, cv2.IMREAD_COLOR)
+    # image.astype(np.uint8)
+    return image
+
+
 def node_type(node: Node) -> str:
+    """Node, Table or Core?"""
     text = "N"
     if node.has_table():
         text = "T"
@@ -37,7 +45,7 @@ def draw_box(img: np.array, pos=(0, 0), text: str = "pt_01", nd_type: str = "N")
         thickness = 2
         color = (0, 0, 0)
 
-    img = cv2.rectangle(img, top_left, bottom_right, color, thickness)
+    img = cv2.rectangle(img, top_left, bottom_right, color, int(thickness))
 
     top_left = (pos[0] + 2, pos[1] + 10)
     bottom_right = (pos[0] + 98, pos[1] + 40)
