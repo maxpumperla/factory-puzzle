@@ -1,6 +1,6 @@
 from factory.util.samples import get_small_default_factory, get_default_factory
 from factory.simulation import get_shortest_weighted_path, get_paths_distances_obstructions
-from factory.controls import move_table_along_path
+from factory.heuristics import move_table_along_path
 
 
 def test_small_factory_paths():

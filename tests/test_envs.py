@@ -5,6 +5,7 @@ from factory.config import SIMULATION_CONFIG
 from factory.environments import FactoryEnv
 from copy import deepcopy
 
+
 def test_stats_tracker():
     factory = get_small_default_factory(random_seed=42, num_tables=4, num_cores=1, num_phases=1, max_num_steps=1000)
 
@@ -20,8 +21,9 @@ def test_stats_tracker():
 
     assert sum(len(v) for k, v in factory.moves.items()) == 100
     for result in ActionResult:
-        # expect every kind of movement
-        assert result in factory.moves.get(agent_id)
+        # expect every kind of movement, except invalidly entering a rail
+        if result is not ActionResult.INVALID_RAIL_ENTERING:
+            assert result in factory.moves.get(agent_id)
 
     rewards = sum(res.reward() for res in factory.moves.get(agent_id))
     invalid = len([m for m in factory.moves.get(agent_id) if m is ActionResult.INVALID])
