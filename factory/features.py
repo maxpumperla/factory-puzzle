@@ -2,13 +2,13 @@ from factory.models import Node, Direction, Table
 from factory.simulation import Factory
 from factory.config import get_observation_names, get_reward_names_and_weights
 import numpy as np
-from typing import List
+from typing import List, Optional
 import importlib
 
 __all__ = ["get_observations", "get_reward", "get_done", "can_move_in_direction"]
 
 
-def get_observations(agent_id: int, factory: Factory) -> np.ndarray:
+def get_observations(agent_id: Optional[int], factory: Factory) -> np.ndarray:
     """Get observation of one agent given the current factory state.
     We first determine the observations selected in the config file and
     then concatenate the results of the corresponding observation functions.
@@ -116,25 +116,26 @@ def has_core_neighbour(node: Node, factory: Factory):
 
 
 def obs_agent_id(agent_id: int, factory: Factory) -> np.ndarray:
+    """This agent's ID"""
     return np.asarray([agent_id])
 
 
 def obs_agent_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
+    """This agent's coordinates"""
     agent: Table = factory.tables[agent_id]
     return np.asarray(list(agent.node.coordinates))
 
 
-def obs_all_non_agent_table_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
-    """encode all non-agent table coordinates"""
-    agent: Table = factory.tables[agent_id]
+def obs_all_table_coordinates(agent_id: int, factory: Factory) -> np.ndarray:
+    """encode all table coordinates"""
     coordinates = []
     for table in factory.tables:
-        if table is not agent:
-            coordinates += list(table.node.coordinates)
+        coordinates += list(table.node.coordinates)
     return np.asarray(coordinates)
 
 
 def obs_agent_has_neighbour(agent_id: int, factory: Factory) -> np.ndarray:
+    """Does this agent have a neighbouring node?"""
     agent: Table = factory.tables[agent_id]
 
     return np.asarray([
@@ -146,6 +147,7 @@ def obs_agent_has_neighbour(agent_id: int, factory: Factory) -> np.ndarray:
 
 
 def obs_agent_free_neighbour(agent_id: int, factory: Factory):
+    """Does this agent have a neighbouring node and, if so, can we go there?"""
     agent: Table = factory.tables[agent_id]
 
     return np.asarray([
@@ -157,32 +159,39 @@ def obs_agent_free_neighbour(agent_id: int, factory: Factory):
 
 
 def obs_agent_has_core(agent_id: int, factory: Factory):
+    """Does this agent have a core?"""
     agent: Table = factory.tables[agent_id]
     return np.asarray([agent.has_core()])
 
 
 def obs_agent_core_target_coordinates(agent_id: int, factory: Factory):
+    """Return this agent's core coordinates, it it has a core, otherwise [-1, -1]"""
     agent: Table = factory.tables[agent_id]
     if agent.has_core():
         current_target: Node = agent.core.current_target
         return np.asarray(list(current_target.coordinates))
     else:
+        # TODO: is there something more natural/clever than this?
+        #  compare this to the one-hot encoded situation, where we simply have a zeros-only array.
         return np.asarray([-1, -1])
 
 
 def obs_all_tables_one_hot(agent_id: int, factory: Factory):
+    """One-hot encode all current table positions."""
     num_nodes = len(factory.nodes)
     all_table_indices = [factory.nodes.index(t.node) for t in factory.tables]
     return np.asarray(one_hot_encode(num_nodes, all_table_indices))
 
 
 def obs_all_cores_one_hot(agent_id: int, factory: Factory):
+    """One-hot encode all cores."""
     num_nodes = len(factory.nodes)
     all_table_indices = [factory.nodes.index(t.node) for t in factory.tables if t.has_core()]
     return np.asarray(one_hot_encode(num_nodes, all_table_indices))
 
 
 def obs_agent_id_one_hot(agent_id: int, factory: Factory):
+    """One-hot encode the current agent."""
     agent: Table = factory.tables[agent_id]
 
     # Agent node ID one-hot encoded (#Nodes)
@@ -192,8 +201,9 @@ def obs_agent_id_one_hot(agent_id: int, factory: Factory):
 
 
 def obs_agent_core_target_one_hot(agent_id: int, factory: Factory) -> np.ndarray:
+    """One-hot encode the current agent's core target. If it doesn't have a target,
+    simply return an array with all zeros."""
     agent: Table = factory.tables[agent_id]
-
     num_nodes = len(factory.nodes)
 
     # Current core target one-hot encoded (#Nodes)

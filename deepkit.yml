@@ -20,7 +20,7 @@ config:
   experiment_list: full_12_run_round_robin
 
   # RL-specific configuration
-  env: TupleFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv" and "TupleFactoryEnv"
+  env: MultiAgentFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv" and "TupleFactoryEnv"
   max_num_steps: 1000 # NOTE: need to set this high enough for the big factory
   masking: true  # whether to use action masking
   algorithm: PPO  # Choose from PPO, DQN, MARWIL
@@ -36,7 +36,7 @@ config:
   obs_agent_coordinates: true
   obs_agent_has_core: true
   obs_agent_core_target_coordinates: true
-  obs_all_non_agent_table_coordinates: true
+  obs_all_table_coordinates: true
 
   ## Neighbour obs (unnecessary with action masking)
   obs_agent_has_neighbour: false
