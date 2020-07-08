@@ -46,7 +46,10 @@ def add_masking(self, observations):
 
 
 def update_action_mask(env, agent=None):
-    current_agent = agent if agent else env.current_agent
+    if agent is not None:
+        current_agent = agent
+    else:
+        current_agent = env.current_agent
     agent_table = env.factory.tables[current_agent]
     agent_node = agent_table.node
 
@@ -174,6 +177,9 @@ class TupleFactoryEnv(FactoryEnv):
     def __init__(self, config=None):
         super().__init__(config)
         self.action_space = get_tuple_action_space(self.config)
+        # All agents active at once. We set this as safeguard to prevent the addition
+        # of agent-specific features by accident.
+        self.current_agent = None
 
     def _step_apply(self, action_tuple):
         """Just go through all actions in the tuple and apply the moves as before individually."""
@@ -213,12 +219,15 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
 
     def __init__(self, config=None):
         super().__init__(config)
+        # All agents active at once. We set this as safeguard to prevent the addition
+        # of agent-specific features by accident.
+        self.current_agent = None
 
     def step(self, action: Dict):
         agents = action.keys()
-        # assert len(agents) is self.num_agents
 
         for agent in agents:
+            # Carrying out actions sequentially might lead to certain collisions and invalid rail enterings.
             agent_action = Action(action.get(agent))
             action_result = do_action(self.factory.tables[agent], self.factory, agent_action)
             self.factory.add_move(agent, agent_action, action_result)
@@ -249,14 +258,6 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
             dones["__all__"] = False
 
         return observations, rewards, dones, {}
-
-    def render(self, mode='human'):
-        if mode == 'ansi':
-            return factory_string(self.factory)
-        elif mode == 'human':
-            return print_factory(self.factory)
-        else:
-            super(self.__class__, self).render(mode=mode)
 
     def reset(self):
         if self.config.get("random_init"):
