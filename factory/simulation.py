@@ -52,8 +52,8 @@ def can_move_away(table: Table, path: List[Node], factory: F):
     for target in allowed_target_nodes:
         possible_paths += get_paths_distances_obstructions(table_node, target, factory)
 
-    unobstructed_paths =[p for p in possible_paths if p[4] is 0]
-    if len(unobstructed_paths) is 0:
+    unobstructed_paths =[p for p in possible_paths if p[4] == 0]
+    if len(unobstructed_paths) == 0:
         return False, None
 
     sorted_solutions = sorted(unobstructed_paths, key=lambda p: p[1])
@@ -101,7 +101,7 @@ class Factory:
 
     def is_solved(self):
         """A factory is solved if no table has a core anymore."""
-        return len([t for t in self.tables if t.has_core()]) is 0
+        return len([t for t in self.tables if t.has_core()]) == 0
 
     def get_paths(self, source_node: Node , sink_node: Node):
         """Get all possible paths from source to sink"""
@@ -127,7 +127,7 @@ class Factory:
         all_paths = self.get_paths(source_node, sink_node)
         unobstructed_paths = []
         for path in all_paths:
-            if get_num_tables_on_path(path) is 0:
+            if get_num_tables_on_path(path) == 0:
                 unobstructed_paths.append(path)
 
         return unobstructed_paths

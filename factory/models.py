@@ -110,7 +110,7 @@ class Rail:
     def get_table_node(self):
         num_tables = self.num_tables()
         assert num_tables <= 1, "Can have at most one table on a rail"
-        if num_tables is 0:
+        if num_tables == 0:
             return None
         return [n for n in self.nodes if n.has_table()][0]
 

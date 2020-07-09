@@ -1,6 +1,6 @@
 from factory.models import Node, Direction, Table
 from factory.simulation import Factory
-from factory.config import get_observation_names, get_reward_names_and_weights
+from factory.config import get_observation_names, get_reward_names_and_weights, SIMULATION_CONFIG
 import numpy as np
 from typing import List, Optional
 import importlib
@@ -41,12 +41,12 @@ def get_reward(agent_id: int, factory: Factory, episodes: int) -> float:
 
     # only configured rewards get picked up
     rewards_to_use = get_reward_names_and_weights()
-    reward_names = rewards_to_use.keys()
     rewards = {}
 
-    if "rew_tighten_max_steps" in reward_names:
-        # After 300 episodes we cut the allowed step length to 1/4th.
-        episode_discount = max(0.25, 1 - (episodes / 400.))
+    if SIMULATION_CONFIG.get("tighten_max_steps") :
+        discount_by = SIMULATION_CONFIG.get("discount_episodes_by")
+        discount_until = SIMULATION_CONFIG.get("discount_episodes_until")
+        episode_discount = max(discount_until, 1 - (episodes / float(discount_by)))
         factory.max_num_steps = int(factory.initial_max_num_steps * episode_discount)
         # We set this to 0, as this is just a mean to decrease the max step count over
         # time. This leads to shorter episodes and is reflected in "rew_punish_slow_tables".
@@ -71,6 +71,14 @@ def get_reward(agent_id: int, factory: Factory, episodes: int) -> float:
     if steps == max_num_steps:
         num_cores_left = len([t for t in factory.tables if t.has_core()])
         rewards["rew_punish_slow_tables"] = - 1 * num_cores_left
+
+    core_paths = [factory.get_paths(c.table.node, c.current_target) for c in factory.cores]
+    for cp in core_paths:
+        # if the current agent literally obstructs all paths of a core to its target, set a negative reward.
+        # do this for all cores, so that tables blocking multiple paths are penalized heavier.
+        if all([agent.node in path for path in cp]):
+            rewards["rew_blocking_path"] += -1.0
+
 
     if not agent.has_core():
         # If an agent without core is close to one with core, let it shy away...

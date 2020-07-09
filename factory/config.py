@@ -1,4 +1,4 @@
-from .util.samples import get_default_factory, get_small_default_factory
+from .util.samples import get_default_factory, get_small_default_factory, get_medium_default_factory
 import os
 import yaml
 
@@ -28,6 +28,8 @@ def factory_from_config(config):
         config = SIMULATION_CONFIG
     if config.get("layout") == "small":
         return get_small_default_factory(**config)
+    elif config.get("layout") == "medium":
+        return get_medium_default_factory(**config)
     elif config.get("layout") == "big":
         return get_default_factory(**config)
     else:

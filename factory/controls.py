@@ -1,12 +1,9 @@
 """"Controls specify how objects change state (how)."""
 import enum
 import random
-from typing import List
-import cv2
 
 from .models import Table, Direction, Node, Rail, ActionResult
 from .simulation import Factory
-from .util.writer import draw_boxes, load_image
 
 
 
