@@ -6,10 +6,10 @@ config:
   high: 11
 
   # Factory settings
-  layout: medium  # either "big", "medium", or "small"
-  num_tables: 3
-  num_cores: 3
-  num_phases: 2
+  layout: big  # either "big", "medium", or "small"
+  num_tables: 10
+  num_cores: 5
+  num_phases: 1
   with_rails: true  # If "false", remove all rails from the grid
   random_init: true  # if random initialization is False, the factory will reset to the same state after each episode.
   # seed: 1337  # Optional random seed to have full control over initial factory state.
@@ -22,7 +22,7 @@ config:
 
   # RL-specific configuration
   env: MultiAgentFactoryEnv  # "FactoryEnv", "RoundRobinFactoryEnv", "MultiAgentFactoryEnv" and "TupleFactoryEnv"
-  max_num_steps: 600 # NOTE: need to set this high enough for the big factory
+  max_num_steps: 5000 # NOTE: need to set this high enough for the big factory
   masking: true  # whether to use action masking TODO: does not work with TupleFactoryEnv (ray issue?)
   algorithm: PPO  # Choose from PPO, DQN, MARWIL
   use_offline_data: false  # Use previously generated offline data (don't use for now, experimental)
@@ -56,7 +56,7 @@ config:
   ## Positive rewards
   rew_found_target:
     value: true
-    weight: 10
+    weight: 100
   rew_found_target_squared:
     value: false
     weight: 10
@@ -64,21 +64,25 @@ config:
   ## Negative rewards
   rew_collisions:
     # it seems for multi-agent there isn't much effect here anyways, masking works well already.
-    # collisions can be avoided altogether with tuple + autoregression, making this term obsolete.
+    # collisions can be avoided altogether with tuple + auto-regression, making this term obsolete.
     value: false
     weight: 0.001
+
+  # Those two will *always* happen in a "crowded" factory, no matter how smart the algorithm.
+  # If these terms are useful, we should set the positive rewards high enough to counteract this.
   rew_blocking_path:
     value: true
     weight: 1
   rew_blocking_target:
     value: true
     weight: 5
+
   rew_avoid_cores: # does not seem very useful in the current formulation, superseded by "rew_blocking_path"
     value: false
     weight: 1
   rew_punish_slow_tables:
     value: true
-    weight: 50
+    weight: 300
   tighten_max_steps: true # Set to "false" if you don't want to allow less and less steps per episode
   discount_episodes_by: 400
   discount_episodes_until: 0.25

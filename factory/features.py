@@ -72,7 +72,8 @@ def get_reward(agent_id: int, factory: Factory, episodes: int) -> float:
         num_cores_left = len([t for t in factory.tables if t.has_core()])
         rewards["rew_punish_slow_tables"] = - 1 * num_cores_left
 
-    core_paths = [factory.get_paths(c.table.node, c.current_target) for c in factory.cores]
+    core_paths = [factory.get_paths(c.table.node, c.current_target) for c in factory.cores if c.current_target is not None]
+    rewards["rew_blocking_path"] = 0
     for cp in core_paths:
         # if the current agent literally obstructs all paths of a core to its target, set a negative reward.
         # do this for all cores, so that tables blocking multiple paths are penalized heavier.

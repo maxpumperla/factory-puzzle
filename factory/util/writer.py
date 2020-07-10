@@ -85,8 +85,9 @@ def factory_string(factory: Factory, fill_char="·", line_break="\n") -> str:
     return line_break.join(grid)
 
 
-def print_factory(factory: Factory):
-    clear_screen()
+def print_factory(factory: Factory, clear=True):
+    if clear:
+        clear_screen()
     print(factory_string(factory))
 
 

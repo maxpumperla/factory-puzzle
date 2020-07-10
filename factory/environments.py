@@ -108,7 +108,7 @@ def get_tuple_action_space(config):
 class FactoryEnv(gym.Env):
     """Define a simple OpenAI Gym environment for a single agent."""
 
-    metadata = {'render.modes': ['human', 'ansi']}
+    metadata = {'render.modes': ['human', 'ansi', 'debug']}
 
     def __init__(self, config=None):
         if config is None:
@@ -153,11 +153,13 @@ class FactoryEnv(gym.Env):
         self._step_apply(action)
         return self._step_observe()
 
-    def render(self, mode='human'):
+    def render(self, mode='debug'):
         if mode == 'ansi':
             return factory_string(self.factory)
         elif mode == 'human':
             return print_factory(self.factory)
+        elif mode == 'debug':
+            return print_factory(self.factory, clear=False)
         else:
             super(self.__class__, self).render(mode=mode)
 
@@ -166,6 +168,8 @@ class FactoryEnv(gym.Env):
             self.factory = factory_from_config(self.config)
         else:
             self.factory = deepcopy(self.initial_factory)
+
+        self.render()
         observations = get_observations(self.current_agent, self.factory)
         observations = add_masking(self, observations)
         return observations
@@ -267,6 +271,8 @@ class MultiAgentFactoryEnv(rllib.env.MultiAgentEnv, FactoryEnv):
             self.factory = factory_from_config(self.config)
         else:
             self.factory = deepcopy(self.initial_factory)
+
+        self.render()
         observations = {i: get_observations(i, self.factory) for i in range(self.num_agents)}
         observations = add_masking(self, observations)
         return observations
